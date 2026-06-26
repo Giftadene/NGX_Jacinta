@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | ARIMA Identification</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+    <div class="max-w-6xl mx-auto p-6 space-y-6">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="/dashboard" class="material-symbols-outlined text-outline hover:text-primary">arrow_back</a>
+            <div>
+                <h1 class="font-headline-md text-headline-md font-bold text-primary">ARIMA Model Identification</h1>
+                <p class="text-on-surface-variant text-body-sm">Module 9 - ACF/PACF plots, grid search, and manual parameter override</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="font-headline-sm text-headline-sm font-semibold">Grid Search Results</h3>
+                        <button onclick="runGridSearch()" class="px-3 py-1.5 bg-secondary text-on-secondary rounded-lg text-label-sm font-bold hover:brightness-110">Search</button>
+                    </div>
+                    <div id="grid-results" class="max-h-80 overflow-y-auto">
+                        <p class="text-body-sm text-outline">Click "Search" to find optimal ARIMA orders by AIC.</p>
+                    </div>
+                </div>
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Manual Parameter Override</h3>
+                    <p class="text-body-sm text-outline mb-3">Select a model from grid search or enter manually, then use it on the dashboard.</p>
+                    <div class="grid grid-cols-3 gap-3 mb-4">
+                        <div>
+                            <label class="block text-label-sm text-outline mb-1">p (AR)</label>
+                            <input id="manual-p" type="number" min="0" max="10" value="1" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-sm text-outline mb-1">d (Diff)</label>
+                            <input id="manual-d" type="number" min="0" max="2" value="1" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-sm text-outline mb-1">q (MA)</label>
+                            <input id="manual-q" type="number" min="0" max="10" value="2" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                    </div>
+                    <button onclick="useManualModel()" class="w-full py-2 bg-primary text-on-primary rounded-lg font-label-md font-bold hover:opacity-90">
+                        Use These Parameters
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">ACF / PACF Diagnostics</h3>
+                    <div class="flex gap-3 mb-4">
+                        <button onclick="loadACFPACF()" class="px-3 py-1.5 bg-secondary text-on-secondary rounded-lg text-label-sm font-bold hover:brightness-110">Load ACF/PACF</button>
+                        <select id="iacf-lags" class="border border-outline-variant rounded-lg px-3 py-1.5 text-body-sm">
+                            <option value="10">10 lags</option>
+                            <option value="20" selected>20 lags</option>
+                            <option value="30">30 lags</option>
+                            <option value="40">40 lags</option>
+                        </select>
+                    </div>
+                    <div class="h-72">
+                        <canvas id="acf-pacf-chart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Suggested ARIMA Models</h3>
+                    <div id="suggested-models" class="space-y-2">
+                        <p class="text-body-sm text-outline">Run grid search to see suggestions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let acfChart = null;
+
+        async function loadACFPACF() {
+            const nlags = parseInt(document.getElementById('iacf-lags').value);
+            const res = await fetch('/api/acf-pacf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: 'ASI.NGX', nlags })
+            });
+            const data = await res.json();
+            if (data.error) return;
+
+            if (acfChart) acfChart.destroy();
+            const ctx = document.getElementById('acf-pacf-chart').getContext('2d');
+            acfChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.lags.slice(1),
+                    datasets: [
+                        { label: 'ACF', data: data.acf.slice(1), backgroundColor: 'rgba(0,106,97,0.7)', borderWidth: 0 },
+                        { label: 'PACF', data: data.pacf.slice(1), backgroundColor: 'rgba(236,110,76,0.7)', borderWidth: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { color: '#e6e8ea' } }
+                    }
+                }
+            });
+        }
+
+        async function runGridSearch() {
+            const res = await fetch('/api/grid-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: 'ASI.NGX', max_p: 5, max_d: 2, max_q: 5 })
+            });
+            const data = await res.json();
+            if (data.error) { alert(data.error); return; }
+
+            const top10 = data.results.slice(0, 10);
+            document.getElementById('grid-results').innerHTML = `
+                <table class="w-full text-left text-body-sm">
+                    <thead><tr class="bg-surface-container sticky top-0">
+                        <th class="px-3 py-2 text-label-sm text-outline uppercase">Order</th>
+                        <th class="px-3 py-2 text-label-sm text-outline uppercase">AIC</th>
+                        <th class="px-3 py-2 text-label-sm text-outline uppercase">BIC</th>
+                        <th class="px-3 py-2 text-label-sm text-outline uppercase">Log-Lik</th>
+                        <th class="px-3 py-2"></th>
+                    </tr></thead>
+                    <tbody class="divide-y divide-outline-variant">
+                        ${top10.map(m => `<tr class="hover:bg-surface-container-low cursor-pointer" onclick="selectModel(${m.p},${m.d},${m.q})">
+                            <td class="px-3 py-2 font-mono font-bold">ARIMA${m.order}</td>
+                            <td class="px-3 py-2 font-mono">${m.aic}</td>
+                            <td class="px-3 py-2 font-mono">${m.bic}</td>
+                            <td class="px-3 py-2 font-mono">${m.log_likelihood}</td>
+                            <td class="px-3 py-2"><span class="material-symbols-outlined text-secondary text-sm">add_circle</span></td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            const best = data.results[0];
+            document.getElementById('suggested-models').innerHTML = `
+                <div class="p-3 bg-secondary-container/10 border border-secondary/20 rounded-lg cursor-pointer" onclick="selectModel(${best.p},${best.d},${best.q})">
+                    <p class="text-label-sm text-outline">Best Model by AIC</p>
+                    <p class="text-headline-sm font-bold text-secondary">ARIMA${best.order}</p>
+                    <p class="text-body-sm text-outline">AIC: ${best.aic} | BIC: ${best.bic} | Log-Lik: ${best.log_likelihood}</p>
+                </div>
+            `;
+            selectModel(best.p, best.d, best.q);
+        }
+
+        function selectModel(p, d, q) {
+            document.getElementById('manual-p').value = p;
+            document.getElementById('manual-d').value = d;
+            document.getElementById('manual-q').value = q;
+        }
+
+        function useManualModel() {
+            const p = document.getElementById('manual-p').value;
+            const d = document.getElementById('manual-d').value;
+            const q = document.getElementById('manual-q').value;
+            window.location.href = `/dashboard?p=${p}&d=${d}&q=${q}`;
+        }
+
+        loadACFPACF();
+    </script>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Logs</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-surface-container-lowest border-r border-outline-variant flex flex-col">
+            <div class="p-5 border-b border-outline-variant">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-on-primary">admin_panel_settings</span>
+                    </div>
+                    <div>
+                        <h1 class="font-headline-sm text-headline-sm font-semibold text-primary">Admin Panel</h1>
+                        <p class="text-label-sm text-outline">NGX-ARIMA</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex-1 p-4 space-y-1">
+                <a href="{{ url_for('admin.index') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-surface-container-higher rounded font-label-md">
+                    <span class="material-symbols-outlined">dashboard</span> Dashboard
+                </a>
+                <a href="{{ url_for('admin.users') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-surface-container-higher rounded font-label-md">
+                    <span class="material-symbols-outlined">people</span> Users
+                </a>
+                <a href="{{ url_for('admin.settings') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-surface-container-higher rounded font-label-md">
+                    <span class="material-symbols-outlined">settings</span> Settings
+                </a>
+                <a href="{{ url_for('admin.logs') }}" class="flex items-center gap-3 p-2.5 text-secondary border-l-2 border-secondary bg-secondary-container/10 rounded font-label-md">
+                    <span class="material-symbols-outlined">terminal</span> Logs
+                </a>
+            </nav>
+            <div class="p-4 border-t border-outline-variant">
+                <a href="{{ url_for('auth.logout') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-error-container rounded font-label-md">
+                    <span class="material-symbols-outlined">logout</span> Logout
+                </a>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto">
+            <header class="h-16 border-b border-outline-variant flex items-center px-6 bg-surface-container-lowest">
+                <h2 class="font-headline-sm text-headline-sm font-semibold">System Logs</h2>
+                <div class="ml-auto flex gap-2">
+                    <a href="{{ url_for('admin.logs') }}?category=auth" class="px-3 py-1.5 text-label-sm rounded-lg border border-outline-variant hover:bg-surface-container">Auth</a>
+                    <a href="{{ url_for('admin.logs') }}?category=forecast" class="px-3 py-1.5 text-label-sm rounded-lg border border-outline-variant hover:bg-surface-container">Forecast</a>
+                    <a href="{{ url_for('admin.logs') }}?category=admin" class="px-3 py-1.5 text-label-sm rounded-lg border border-outline-variant hover:bg-surface-container">Admin</a>
+                    <a href="{{ url_for('admin.logs') }}" class="px-3 py-1.5 text-label-sm rounded-lg border border-secondary text-secondary {% if not category %}bg-secondary-container/10{% endif %}">All</a>
+                </div>
+            </header>
+
+            <div class="p-6">
+                <div class="bg-slate-950 text-emerald-400 p-6 font-mono text-xs rounded-xl border border-slate-800 h-[70vh] overflow-y-auto space-y-1">
+                    {% for log in logs %}
+                    <div class="flex gap-4 {% if log.category == 'error' %}text-red-400{% endif %}">
+                        <span class="text-slate-500 shrink-0">{{ log.created_at.strftime('%H:%M:%S') }}</span>
+                        <span class="text-slate-400 shrink-0">[{{ log.category }}]</span>
+                        <span class="font-bold shrink-0">{{ log.action }}</span>
+                        <span class="text-slate-300">{{ log.details or '' }}</span>
+                        <span class="text-slate-600 ml-auto">{{ log.user.username if log.user else 'system' }}</span>
+                    </div>
+                    {% else %}
+                    <div class="text-slate-500">// No log entries found.</div>
+                    {% endfor %}
+                </div>
+                {% if pagination and pagination.pages > 1 %}
+                <div class="flex justify-center gap-2 mt-4">
+                    {% for page_num in pagination.iter_pages() %}
+                        {% if page_num %}
+                            <a href="{{ url_for('admin.logs', page=page_num, category=category) }}"
+                               class="px-3 py-1 rounded {% if page_num == pagination.page %}bg-secondary text-on-secondary{% else %}bg-surface-container border border-outline-variant{% endif %}">
+                                {{ page_num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+</body>
+</html>

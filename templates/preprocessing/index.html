@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Preprocessing</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+    <div class="max-w-6xl mx-auto p-6 space-y-6">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="/dashboard" class="material-symbols-outlined text-outline hover:text-primary">arrow_back</a>
+            <div>
+                <h1 class="font-headline-md text-headline-md font-bold text-primary">Data Preprocessing & Feature Engineering</h1>
+                <p class="text-on-surface-variant text-body-sm">Modules 5 & 6 - Automated data cleaning and derived variables</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1 space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Processing Steps</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-center gap-3 p-2.5 bg-surface-container rounded-lg">
+                            <span class="material-symbols-outlined text-secondary">check_circle</span>
+                            <span class="text-body-sm">Sort dates ascending</span>
+                        </li>
+                        <li class="flex items-center gap-3 p-2.5 bg-surface-container rounded-lg">
+                            <span class="material-symbols-outlined text-secondary">check_circle</span>
+                            <span class="text-body-sm">Handle missing values (interpolation)</span>
+                        </li>
+                        <li class="flex items-center gap-3 p-2.5 bg-surface-container rounded-lg">
+                            <span class="material-symbols-outlined text-secondary">check_circle</span>
+                            <span class="text-body-sm">Remove duplicate dates</span>
+                        </li>
+                        <li class="flex items-center gap-3 p-2.5 bg-surface-container rounded-lg">
+                            <span class="material-symbols-outlined text-secondary">check_circle</span>
+                            <span class="text-body-sm">Normalize numeric columns</span>
+                        </li>
+                        <li class="flex items-center gap-3 p-2.5 bg-surface-container rounded-lg">
+                            <span class="material-symbols-outlined text-secondary">check_circle</span>
+                            <span class="text-body-sm">Compute log & simple returns</span>
+                        </li>
+                        <li class="flex items-center gap-3 p-2.5 bg-surface-container rounded-lg">
+                            <span class="material-symbols-outlined text-secondary">check_circle</span>
+                            <span class="text-body-sm">Rolling mean / std / volatility</span>
+                        </li>
+                    </ul>
+                    <button onclick="runPreprocessing()" class="w-full mt-4 py-2.5 bg-secondary text-on-secondary rounded-lg font-label-md font-bold hover:brightness-110">
+                        Run Full Pipeline
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-4">
+                <div id="prep-stats" class="hidden bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Descriptive Statistics</h3>
+                    <div id="prep-stats-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+                </div>
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Generated Features</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-body-sm">
+                            <thead>
+                                <tr class="bg-surface-container">
+                                    <th class="px-3 py-2 text-label-sm text-outline uppercase">Feature</th>
+                                    <th class="px-3 py-2 text-label-sm text-outline uppercase">Description</th>
+                                    <th class="px-3 py-2 text-label-sm text-outline uppercase">Formula</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-outline-variant">
+                                <tr><td class="px-3 py-2 font-mono">log_return</td><td class="px-3 py-2">Daily log return</td><td class="px-3 py-2 font-mono">ln(P_t / P_{t-1})</td></tr>
+                                <tr><td class="px-3 py-2 font-mono">simple_return</td><td class="px-3 py-2">Simple percentage return</td><td class="px-3 py-2 font-mono">(P_t - P_{t-1}) / P_{t-1}</td></tr>
+                                <tr><td class="px-3 py-2 font-mono">rolling_mean_5</td><td class="px-3 py-2">5-day moving average</td><td class="px-3 py-2 font-mono">SMA(5)</td></tr>
+                                <tr><td class="px-3 py-2 font-mono">rolling_mean_20</td><td class="px-3 py-2">20-day moving average</td><td class="px-3 py-2 font-mono">SMA(20)</td></tr>
+                                <tr><td class="px-3 py-2 font-mono">rolling_std_20</td><td class="px-3 py-2">20-day rolling std</td><td class="px-3 py-2 font-mono">σ(20)</td></tr>
+                                <tr><td class="px-3 py-2 font-mono">volatility</td><td class="px-3 py-2">Annualized volatility</td><td class="px-3 py-2 font-mono">σ_20 × √252</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function runPreprocessing() {
+            const res = await fetch('/api/data-summary?symbol=ASI.NGX');
+            const data = await res.json();
+            if (data.error) { alert(data.error); return; }
+
+            document.getElementById('prep-stats').classList.remove('hidden');
+            document.getElementById('prep-stats-grid').innerHTML = `
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Total Days</span><p class="text-xl font-bold">${data.total_records}</p></div>
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Start</span><p class="text-lg font-bold">${data.start_date}</p></div>
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">End</span><p class="text-lg font-bold">${data.end_date}</p></div>
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Latest Close</span><p class="text-lg font-bold">₦${data.current_price?.toFixed(2) || 'N/A'}</p></div>
+            `;
+        }
+        runPreprocessing();
+    </script>
+</body>
+</html>

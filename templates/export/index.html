@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Export Centre</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+    <div class="max-w-4xl mx-auto p-6 space-y-6">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="/dashboard" class="material-symbols-outlined text-outline hover:text-primary">arrow_back</a>
+            <div>
+                <h1 class="font-headline-md text-headline-md font-bold text-primary">Export Centre</h1>
+                <p class="text-on-surface-variant text-body-sm">Module 17 - Download results in multiple formats</p>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Select Symbol</label>
+            <select id="export-symbol" class="border border-outline-variant rounded-lg px-3 py-2">
+                <option value="ASI.NGX">ASI.NGX (All-Share Index)</option>
+                <option value="DANGCEM">DANGCEM</option>
+                <option value="MTNN">MTNN</option>
+                <option value="ZENITH">ZENITH</option>
+            </select>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <a id="export-csv-link" href="/api/export/csv?symbol=ASI.NGX" class="block bg-white border border-outline-variant p-5 rounded-xl hover:border-secondary transition-colors">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-secondary-container/20 rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-secondary">table_chart</span>
+                    </div>
+                    <div>
+                        <h3 class="font-headline-sm text-headline-sm font-semibold">CSV Export</h3>
+                        <p class="text-body-sm text-outline">Full historical dataset as CSV</p>
+                    </div>
+                </div>
+            </a>
+            <a id="export-json-link" href="/api/export/json?symbol=ASI.NGX" class="block bg-white border border-outline-variant p-5 rounded-xl hover:border-secondary transition-colors">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-secondary-container/20 rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-secondary">data_object</span>
+                    </div>
+                    <div>
+                        <h3 class="font-headline-sm text-headline-sm font-semibold">JSON Export</h3>
+                        <p class="text-body-sm text-outline">Complete analysis in JSON format</p>
+                    </div>
+                </div>
+            </a>
+            <a href="/dashboard#reports" class="block bg-white border border-outline-variant p-5 rounded-xl hover:border-secondary transition-colors">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-secondary-container/20 rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-secondary">description</span>
+                    </div>
+                    <div>
+                        <h3 class="font-headline-sm text-headline-sm font-semibold">LaTeX Report</h3>
+                        <p class="text-body-sm text-outline">Publication-ready research paper</p>
+                    </div>
+                </div>
+            </a>
+            <a href="/research/stationarity" class="block bg-white border border-outline-variant p-5 rounded-xl hover:border-secondary transition-colors">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-secondary-container/20 rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-secondary">monitoring</span>
+                    </div>
+                    <div>
+                        <h3 class="font-headline-sm text-headline-sm font-semibold">Diagnostics PDF</h3>
+                        <p class="text-body-sm text-outline">ADF, residual diagnostics, and charts</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <script>
+            document.getElementById('export-symbol').addEventListener('change', function() {
+                document.getElementById('export-csv-link').href = '/api/export/csv?symbol=' + this.value;
+                document.getElementById('export-json-link').href = '/api/export/json?symbol=' + this.value;
+            });
+        </script>
+    </div>
+</body>
+</html>

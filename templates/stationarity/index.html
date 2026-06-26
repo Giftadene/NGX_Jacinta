@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Stationarity & Identification</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+    <div class="max-w-6xl mx-auto p-6 space-y-6">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="/dashboard" class="material-symbols-outlined text-outline hover:text-primary">arrow_back</a>
+            <div>
+                <h1 class="font-headline-md text-headline-md font-bold text-primary">Stationarity & ARIMA Identification</h1>
+                <p class="text-on-surface-variant text-body-sm">Modules 8 & 9 - ADF test, ACF/PACF, grid search</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="font-headline-sm text-headline-sm font-semibold">Augmented Dickey-Fuller Test</h3>
+                        <button onclick="runADFTest()" class="px-3 py-1.5 bg-secondary text-on-secondary rounded-lg text-label-sm font-bold hover:brightness-110">Run Test</button>
+                    </div>
+                    <div id="adf-results" class="space-y-3">
+                        <p class="text-body-sm text-outline">Click "Run Test" to check stationarity of log returns.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">ACF / PACF Plot</h3>
+                    <div class="h-64">
+                        <canvas id="acf-pacf-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="font-headline-sm text-headline-sm font-semibold">Grid Search (Auto-ARIMA)</h3>
+                        <button onclick="runGridSearch()" class="px-3 py-1.5 bg-secondary text-on-secondary rounded-lg text-label-sm font-bold hover:brightness-110">Search</button>
+                    </div>
+                    <div id="grid-results" class="space-y-2">
+                        <p class="text-body-sm text-outline">Click "Search" to find optimal ARIMA(p,d,q) by AIC.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Suggested Models</h3>
+                    <div id="suggested-models" class="space-y-2">
+                        <p class="text-body-sm text-outline">Run ADF and grid search to see suggestions.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let acfChart = null;
+
+        async function runADFTest() {
+            const res = await fetch('/api/stationarity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: 'ASI.NGX' })
+            });
+            const data = await res.json();
+            if (data.error) { alert(data.error); return; }
+
+            document.getElementById('adf-results').innerHTML = `
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">ADF Statistic</span><p class="text-lg font-bold font-mono">${data.adf_stat.toFixed(4)}</p></div>
+                    <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">p-value</span><p class="text-lg font-bold font-mono">${data.p_value.toExponential(3)}</p></div>
+                    <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Lags Used</span><p class="text-lg font-bold">${data.used_lag}</p></div>
+                    <div class="p-3 bg-surface-container rounded-lg">
+                        <span class="text-label-sm text-outline">Decision</span>
+                        <p class="text-lg font-bold ${data.is_stationary ? 'text-secondary' : 'text-error'}">${data.is_stationary ? 'STATIONARY' : 'NON-STATIONARY'}</p>
+                    </div>
+                </div>
+                <div class="mt-3 p-3 bg-surface-container rounded-lg">
+                    <span class="text-label-sm text-outline block mb-2">Critical Values</span>
+                    ${Object.entries(data.critical_values).map(([k, v]) =>
+                        `<div class="flex justify-between text-body-sm"><span>${k}</span><span class="font-mono">${v.toFixed(4)}</span></div>`
+                    ).join('')}
+                </div>
+            `;
+
+            const acfRes = await fetch('/api/acf-pacf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: 'ASI.NGX', nlags: 20 })
+            });
+            const acfData = await acfRes.json();
+            if (acfData.error) return;
+
+            if (acfChart) acfChart.destroy();
+            const ctx = document.getElementById('acf-pacf-chart').getContext('2d');
+            acfChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: acfData.lags.slice(1),
+                    datasets: [
+                        { label: 'ACF', data: acfData.acf.slice(1), backgroundColor: 'rgba(0,106,97,0.7)', borderWidth: 0 },
+                        { label: 'PACF', data: acfData.pacf.slice(1), backgroundColor: 'rgba(236,110,76,0.7)', borderWidth: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } },
+                    scales: { x: { grid: { display: false } }, y: { grid: { color: '#e6e8ea' } } }
+                }
+            });
+        }
+
+        async function runGridSearch() {
+            const res = await fetch('/api/grid-search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ symbol: 'ASI.NGX', max_p: 5, max_d: 2, max_q: 5 })
+            });
+            const data = await res.json();
+            if (data.error) { alert(data.error); return; }
+
+            const top10 = data.results.slice(0, 10);
+            document.getElementById('grid-results').innerHTML = `
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-body-sm">
+                        <thead><tr class="bg-surface-container">
+                            <th class="px-3 py-2 text-label-sm text-outline uppercase">Order</th>
+                            <th class="px-3 py-2 text-label-sm text-outline uppercase">AIC</th>
+                            <th class="px-3 py-2 text-label-sm text-outline uppercase">BIC</th>
+                            <th class="px-3 py-2 text-label-sm text-outline uppercase">Log-Lik</th>
+                        </tr></thead>
+                        <tbody class="divide-y divide-outline-variant">
+                            ${top10.map(m => `<tr class="hover:bg-surface-container-low">
+                                <td class="px-3 py-2 font-mono font-bold">ARIMA${m.order}</td>
+                                <td class="px-3 py-2 font-mono">${m.aic}</td>
+                                <td class="px-3 py-2 font-mono">${m.bic}</td>
+                                <td class="px-3 py-2 font-mono">${m.log_likelihood}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            const best = data.results[0];
+            document.getElementById('suggested-models').innerHTML = `
+                <div class="p-3 bg-secondary-container/10 border border-secondary/20 rounded-lg">
+                    <p class="text-label-sm text-outline">Best Model by AIC</p>
+                    <p class="text-headline-sm font-bold text-secondary">ARIMA${best.order}</p>
+                    <p class="text-body-sm text-outline">AIC: ${best.aic} | BIC: ${best.bic}</p>
+                </div>
+            `;
+        }
+
+        runADFTest();
+    </script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Data Acquisition</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+    <div class="max-w-6xl mx-auto p-6 space-y-6">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="/dashboard" class="material-symbols-outlined text-outline hover:text-primary">arrow_back</a>
+            <div>
+                <h1 class="font-headline-md text-headline-md font-bold text-primary">Market Data Acquisition</h1>
+                <p class="text-on-surface-variant text-body-sm">Module 4 - Automatic NGX ASI data retrieval</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1 space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Data Source Configuration</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Symbol</label>
+                            <select id="acq-symbol" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                                <option value="ASI.NGX">ASI.NGX (All-Share Index)</option>
+                                <option value="DANGCEM">DANGCEM</option>
+                                <option value="MTNN">MTNN</option>
+                                <option value="ZENITH">ZENITH</option>
+                            </select>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Start Year</label>
+                                <input id="acq-start" type="number" value="2010" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-label-md text-on-surface-variant mb-1 font-medium">End Year</label>
+                                <input id="acq-end" type="number" value="2024" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                            </div>
+                        </div>
+                        <button onclick="fetchMarketData()" class="w-full py-2.5 bg-secondary text-on-secondary rounded-lg font-label-md font-bold hover:brightness-110 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined">cloud_download</span>
+                            Retrieve Data
+                        </button>
+                    </div>
+                </div>
+                <div id="acq-validation" class="hidden bg-white border border-outline-variant p-5 rounded-xl space-y-3">
+                    <h3 class="font-label-md text-label-md uppercase font-bold">Validation Results</h3>
+                    <div id="acq-validation-content"></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-4">
+                <div id="acq-summary" class="hidden bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Dataset Summary</h3>
+                    <div id="acq-summary-content" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+                </div>
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Data Overview</h3>
+                    <div class="h-72">
+                        <canvas id="acq-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let acqChart = null;
+
+        async function fetchMarketData() {
+            const symbol = document.getElementById('acq-symbol').value;
+            const start = document.getElementById('acq-start').value;
+            const end = document.getElementById('acq-end').value;
+
+            const res = await fetch(`/api/data-summary?symbol=${symbol}`);
+            const data = await res.json();
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            document.getElementById('acq-summary').classList.remove('hidden');
+            document.getElementById('acq-summary-content').innerHTML = `
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Records</span><p class="text-xl font-bold">${data.total_records}</p></div>
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Start</span><p class="text-xl font-bold">${data.start_date}</p></div>
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">End</span><p class="text-xl font-bold">${data.end_date}</p></div>
+                <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Latest Price</span><p class="text-xl font-bold">₦${data.current_price?.toFixed(2) || 'N/A'}</p></div>
+            `;
+
+            if (acqChart) acqChart.destroy();
+            const ctx = document.getElementById('acq-chart').getContext('2d');
+            acqChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: `${symbol} Close Price`,
+                        data: data.prices,
+                        borderColor: '#006a61',
+                        borderWidth: 2,
+                        fill: true,
+                        backgroundColor: 'rgba(0,106,97,0.05)',
+                        tension: 0.1,
+                        pointRadius: 0,
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { color: '#e6e8ea' } } } }
+            });
+        }
+
+        fetchMarketData();
+    </script>
+</body>
+</html>

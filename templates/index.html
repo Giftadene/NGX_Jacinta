@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html class="scroll-smooth" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Institutional Intelligence</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link family="Geist" href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&amp;display=swap" rel="stylesheet"/>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Geist', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .data-grid-pattern {
+            background-image: radial-gradient(#c6c6cd 0.5px, transparent 0.5px);
+            background-size: 24px 24px;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid #e0e3e5;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 6s ease-in-out infinite;
+        }
+    </style>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container": "#eceef0",
+                        "on-surface": "#191c1e",
+                        "primary-fixed": "#dae2fd",
+                        "error": "#ba1a1a",
+                        "outline": "#76777d",
+                        "surface-tint": "#565e74",
+                        "surface-container-highest": "#e0e3e5",
+                        "secondary-fixed-dim": "#6bd8cb",
+                        "error-container": "#ffdad6",
+                        "on-error-container": "#93000a",
+                        "surface-variant": "#e0e3e5",
+                        "on-tertiary-fixed": "#07006c",
+                        "on-primary-container": "#7c839b",
+                        "surface-dim": "#d8dadc",
+                        "inverse-primary": "#bec6e0",
+                        "primary-fixed-dim": "#bec6e0",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#191c1e",
+                        "on-secondary-fixed-variant": "#005049",
+                        "on-primary-fixed": "#131b2e",
+                        "inverse-on-surface": "#eff1f3",
+                        "inverse-surface": "#2d3133",
+                        "outline-variant": "#c6c6cd",
+                        "secondary": "#006a61",
+                        "surface-bright": "#f7f9fb",
+                        "tertiary-fixed-dim": "#c0c1ff",
+                        "on-surface-variant": "#45464d",
+                        "tertiary": "#000000",
+                        "background": "#f7f9fb",
+                        "on-secondary": "#ffffff",
+                        "surface-container-low": "#f2f4f6",
+                        "on-primary-fixed-variant": "#3f465c",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-container": "#7073ff",
+                        "on-secondary-fixed": "#00201d",
+                        "tertiary-container": "#07006c",
+                        "tertiary-fixed": "#e1e0ff",
+                        "on-secondary-container": "#006f66",
+                        "primary-container": "#131b2e",
+                        "secondary-fixed": "#89f5e7",
+                        "on-tertiary-fixed-variant": "#2f2ebe",
+                        "primary": "#000000",
+                        "surface-container-high": "#e6e8ea",
+                        "secondary-container": "#86f2e4",
+                        "on-error": "#ffffff",
+                        "surface": "#f7f9fb",
+                        "on-tertiary": "#ffffff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "stack-xs": "4px",
+                        "base": "4px",
+                        "stack-md": "16px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px",
+                        "stack-lg": "24px",
+                        "container-max": "1440px",
+                        "stack-sm": "8px",
+                        "stack-xl": "48px",
+                        "margin-desktop": "32px"
+                    },
+                    "fontFamily": {
+                        "body-sm": ["Geist"],
+                        "headline-sm": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "body-md": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "body-lg": ["Geist"],
+                        "label-md": ["Geist"],
+                        "headline-lg": ["Geist"],
+                        "label-sm": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}],
+                        "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "headline-lg": ["30px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface">
+<!-- TopNavBar Implementation -->
+<header class="flex justify-between items-center w-full px-margin-desktop h-16 sticky top-0 z-50 bg-surface-container-lowest border-b border-outline-variant">
+    <div class="flex items-center gap-stack-lg">
+        <span class="font-headline-md text-headline-md font-bold text-primary tracking-tight">NGX-ARIMA</span>
+        <nav class="hidden md:flex gap-stack-lg">
+            <a class="font-body-md text-body-md text-secondary border-b-2 border-secondary pb-1 cursor-pointer active:opacity-80 transition-colors" href="/dashboard">Dashboard</a>
+            <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80" href="/dashboard#history">History</a>
+            <a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer active:opacity-80" href="/dashboard#reports">Reports</a>
+        </nav>
+    </div>
+    <div class="flex items-center gap-stack-md">
+        <div class="relative hidden lg:block">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
+            <input class="pl-10 pr-4 py-1.5 bg-surface-container-low border border-outline-variant rounded-lg font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary w-64" placeholder="Search markets..." type="text"/>
+        </div>
+        <button class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">notifications</button>
+        <button onclick="location.href='/auth/login'" class="px-4 py-1.5 bg-secondary text-on-secondary rounded-lg text-label-sm font-bold hover:brightness-110 transition-all hidden md:block">Sign In</button>
+        <div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant cursor-pointer" onclick="location.href='/auth/login'">
+            <img class="w-full h-full object-cover" data-alt="A professional headshot of a financial researcher" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBFkLhh9RzNSHqlAKw3BzBIu8PRvJR7SVYmGULaEkjiTsxJ7t2dwPaNFZPlOC4GznouVPyjdKHshajk_0W3fvdj_Xq9ScU5a05dg3DFivjEjnosjICWjrPanxEbjLvV0-7gcjJ6nUv71CZlnwU_4nUSTeNQNGKaItcGFTspSWldSxvwRKIoSyzLxPpYtOxz51YrJ-J_zoMR4vI5y__aQxNdAUTvKfEpctX3dz-0AnDV7sFSK4bD5x9pzjjNQy5k7BgY-XtAFrDxZyrG"/>
+        </div>
+    </div>
+</header>
+<main class="max-w-[1440px] mx-auto overflow-x-hidden">
+    <!-- Hero Section -->
+    <section class="relative min-h-[870px] flex items-center bg-inverse-surface overflow-hidden">
+        <!-- Animated Background -->
+        <div class="absolute inset-0 opacity-20 pointer-events-none"></div>
+        <div class="relative z-10 grid lg:grid-cols-2 gap-stack-xl items-center px-margin-desktop w-full">
+            <div class="space-y-stack-lg max-w-2xl">
+                <div class="inline-flex items-center px-3 py-1 rounded-full bg-secondary/20 border border-secondary/30 text-secondary-fixed-dim font-label-md text-label-md">
+                    <span class="mr-2 text-emerald-400 animate-pulse">●</span> Live NGX Feed
+                </div>
+                <h1 class="font-display-lg text-display-lg text-white leading-tight">
+                    Predicting the Pulse of the <span class="text-secondary-fixed-dim">NGX.</span>
+                </h1>
+                <p class="font-display-lg text-[28px] md:text-[36px] text-secondary-fixed-dim font-bold leading-tight mb-stack-md">
+                    Ominyi Jecinta Ngozi<br/>
+                    <span class="text-slate-300 text-headline-sm">(EBSU/PG/M.Sc./2024/12837)</span>
+                </p>
+                <p class="font-body-lg text-body-lg text-slate-300 max-w-lg">
+                    A lightweight, institutional-grade research platform for Nigerian Stock Exchange forecasting. Leverage advanced econometric models with sub-second latency.
+                </p>
+                <div class="flex flex-wrap gap-stack-md pt-stack-md">
+                    <button onclick="location.href='/auth/login'" class="px-8 py-3 bg-secondary text-white font-label-md text-label-md font-semibold rounded hover:bg-on-secondary-container transition-all active:scale-95">
+                        Start Researching
+                    </button>
+                    <button onclick="location.href='/auth/login'" class="px-8 py-3 border border-slate-600 text-white font-label-md text-label-md font-semibold rounded hover:bg-slate-800 transition-all active:scale-95">
+                        Researcher Login
+                    </button>
+                </div>
+            </div>
+            <!-- Hero Graphic: Candlestick/Price Chart -->
+            <div class="relative lg:block hidden">
+                <div class="glass-panel p-stack-lg rounded-xl shadow-2xl relative overflow-hidden bg-slate-900/50 border-slate-700 animate-float">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-white font-headline-sm text-headline-sm">NGX Banking Index</h3>
+                            <p class="text-slate-400 font-label-sm text-label-sm">FORECAST MODEL: ARIMA (2,1,0)</p>
+                        </div>
+                        <div class="px-3 py-1 bg-secondary/10 border border-secondary text-secondary rounded text-label-sm font-label-sm">STATIONARY</div>
+                    </div>
+                    <!-- Simulated Chart -->
+                    <div class="h-64 flex items-end gap-1.5 pb-8 relative">
+                        <!-- Grid lines -->
+                        <div class="absolute inset-0 flex flex-col justify-between opacity-10 pointer-events-none">
+                            <div class="border-t border-slate-400 w-full"></div>
+                            <div class="border-t border-slate-400 w-full"></div>
+                            <div class="border-t border-slate-400 w-full"></div>
+                            <div class="border-t border-slate-400 w-full"></div>
+                        </div>
+                        <!-- Bars -->
+                        <div class="w-full h-full flex items-end justify-between px-2">
+                            <div class="w-3 bg-slate-700 h-[40%] rounded-t-sm"></div>
+                            <div class="w-3 bg-slate-700 h-[55%] rounded-t-sm"></div>
+                            <div class="w-3 bg-slate-700 h-[48%] rounded-t-sm"></div>
+                            <div class="w-3 bg-secondary h-[65%] rounded-t-sm"></div>
+                            <div class="w-3 bg-secondary h-[72%] rounded-t-sm"></div>
+                            <div class="w-3 bg-secondary h-[85%] rounded-t-sm opacity-60"></div>
+                            <div class="w-3 bg-secondary h-[92%] rounded-t-sm opacity-40"></div>
+                            <div class="w-3 bg-secondary h-[88%] rounded-t-sm opacity-20"></div>
+                        </div>
+                        <!-- Prediction Line -->
+                        <svg class="absolute inset-0 w-full h-full pointer-events-none" preserveaspectratio="none" viewbox="0 0 100 100">
+                            <path d="M0,70 L20,65 L40,50 L60,35 L80,20 L100,25" fill="none" stroke="#006a61" stroke-dasharray="4" stroke-width="2"></path>
+                        </svg>
+                    </div>
+                    <div class="grid grid-cols-3 gap-stack-md pt-4 border-t border-slate-700">
+                        <div>
+                            <p class="text-slate-500 font-label-sm text-label-sm">CONFIDENCE</p>
+                            <p class="text-white font-headline-sm text-headline-sm">94.2%</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 font-label-sm text-label-sm">VOLATILITY</p>
+                            <p class="text-white font-headline-sm text-headline-sm">Low</p>
+                        </div>
+                        <div>
+                            <p class="text-slate-500 font-label-sm text-label-sm">TREND</p>
+                            <p class="text-secondary font-headline-sm text-headline-sm">Bullish</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Features Bento Grid -->
+    <section class="py-stack-xl px-margin-desktop bg-surface-bright">
+        <div class="text-center mb-stack-xl">
+            <h2 class="font-headline-lg text-headline-lg text-primary mb-4">Precision Engineering for Analysts</h2>
+            <p class="font-body-md text-body-md text-on-surface-variant max-w-2xl mx-auto">
+                Built to handle the unique volatility profile of the Nigerian Stock Exchange with institutional-grade accuracy.
+            </p>
+        </div>
+        <div class="grid md:grid-cols-3 gap-gutter">
+            <!-- Feature 1 -->
+            <div class="bg-white p-stack-lg border border-outline-variant hover:border-secondary transition-colors group">
+                <div class="w-12 h-12 bg-surface-container flex items-center justify-center rounded mb-stack-md group-hover:bg-secondary/10 transition-colors">
+                    <span class="material-symbols-outlined text-secondary">cloud_download</span>
+                </div>
+                <h3 class="font-headline-sm text-headline-sm text-primary mb-2">Automatic Data Acquisition</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Direct pipeline integration with NGX market data providers. Real-time ingestion and cleaning of historical OHLCV data for over 150+ listed companies.
+                </p>
+            </div>
+            <!-- Feature 2 -->
+            <div class="bg-white p-stack-lg border border-outline-variant hover:border-secondary transition-colors group">
+                <div class="w-12 h-12 bg-surface-container flex items-center justify-center rounded mb-stack-md group-hover:bg-secondary/10 transition-colors">
+                    <span class="material-symbols-outlined text-secondary">timeline</span>
+                </div>
+                <h3 class="font-headline-sm text-headline-sm text-primary mb-2">Advanced ARIMA Modeling</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Automated parameter tuning (Auto-ARIMA) powered by statsmodels. Identify optimal p, d, q lags to maximize forecast stationarity and minimize AIC/BIC scores.
+                </p>
+            </div>
+            <!-- Feature 3 -->
+            <div class="bg-white p-stack-lg border border-outline-variant hover:border-secondary transition-colors group">
+                <div class="w-12 h-12 bg-surface-container flex items-center justify-center rounded mb-stack-md group-hover:bg-secondary/10 transition-colors">
+                    <span class="material-symbols-outlined text-secondary">description</span>
+                </div>
+                <h3 class="font-headline-sm text-headline-sm text-primary mb-2">Professional Report Generation</h3>
+                <p class="font-body-md text-body-md text-on-surface-variant">
+                    Export publication-ready research papers including ADF tests, ACF/PACF plots, and residuals diagnostics in PDF or LaTeX formats for stakeholders.
+                </p>
+            </div>
+        </div>
+    </section>
+    <!-- Stats Section -->
+    <section class="py-stack-xl px-margin-desktop bg-surface-container-low border-y border-outline-variant">
+        <div class="flex flex-wrap justify-between items-center gap-stack-xl max-w-5xl mx-auto">
+            <div class="text-center">
+                <p class="font-display-lg text-display-lg text-primary">150+</p>
+                <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Listed Equities</p>
+            </div>
+            <div class="text-center">
+                <p class="font-display-lg text-display-lg text-primary">0.8s</p>
+                <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Model Convergence</p>
+            </div>
+            <div class="text-center">
+                <p class="font-display-lg text-display-lg text-primary">99.9%</p>
+                <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Data Integrity</p>
+            </div>
+            <div class="text-center">
+                <p class="font-display-lg text-display-lg text-primary">12k+</p>
+                <p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-widest">Daily Predictions</p>
+            </div>
+        </div>
+    </section>
+    <!-- CTA Section -->
+    <section class="py-24 px-margin-desktop text-center relative overflow-hidden bg-white">
+        <div class="data-grid-pattern absolute inset-0 opacity-40"></div>
+        <div class="relative z-10 max-w-3xl mx-auto">
+            <h2 class="font-headline-lg text-headline-lg text-primary mb-6">Ready to quantify the market?</h2>
+            <p class="font-body-lg text-body-lg text-on-surface-variant mb-stack-xl">
+                Join leading quantitative analysts using NGX-ARIMA for their daily investment thesis and risk management.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="location.href='/auth/register'" class="px-10 py-4 bg-primary text-white font-label-md text-label-md font-bold rounded shadow-lg hover:bg-slate-800 transition-all">
+                    Create Researcher Account
+                </button>
+                <button onclick="location.href='/auth/login'" class="px-10 py-4 bg-white border border-outline text-primary font-label-md text-label-md font-bold rounded hover:bg-surface-container transition-all">
+                    Sign In
+                </button>
+            </div>
+        </div>
+    </section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest border-t border-outline-variant py-stack-xl px-margin-desktop">
+    <div class="max-w-[1440px] mx-auto flex flex-col md:flex-row justify-between items-start gap-stack-xl">
+        <div class="space-y-stack-md">
+            <h2 class="font-headline-sm text-headline-sm font-bold text-primary tracking-tight">NGX-ARIMA</h2>
+            <p class="font-body-sm text-body-sm text-on-surface-variant max-w-xs">
+                The institutional standard for forecasting Nigerian financial markets through rigorous econometric methodology.
+            </p>
+            <p class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+                <span class="material-symbols-outlined text-[14px]">bolt</span>
+                Powered by Flask &amp; statsmodels
+            </p>
+        </div>
+        <div class="grid grid-cols-2 lg:grid-cols-3 gap-gutter w-full md:w-auto">
+            <div>
+                <h4 class="font-label-sm text-label-sm font-bold text-primary mb-stack-md uppercase tracking-widest">Platform</h4>
+                <ul class="space-y-2">
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">Documentation</a></li>
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">API Reference</a></li>
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">System Status</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-label-sm text-label-sm font-bold text-primary mb-stack-md uppercase tracking-widest">Markets</h4>
+                <ul class="space-y-2">
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">Banking Sector</a></li>
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">Oil &amp; Gas</a></li>
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">Consumer Goods</a></li>
+                </ul>
+            </div>
+            <div class="col-span-2 lg:col-span-1">
+                <h4 class="font-label-sm text-label-sm font-bold text-primary mb-stack-md uppercase tracking-widest">Legal</h4>
+                <ul class="space-y-2">
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">Data Disclaimer</a></li>
+                    <li><a class="font-body-sm text-body-sm text-on-surface-variant hover:text-secondary transition-colors" href="#">Privacy Policy</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="max-w-[1440px] mx-auto mt-stack-xl pt-stack-md border-t border-outline-variant flex flex-col sm:flex-row justify-between items-center gap-4">
+        <p class="font-label-sm text-label-sm text-outline">© 2024 Institutional Intelligence Systems. All rights reserved.</p>
+        <div class="flex gap-stack-md">
+            <a class="text-on-surface-variant hover:text-secondary transition-colors" href="#"><span class="material-symbols-outlined">terminal</span></a>
+            <a class="text-on-surface-variant hover:text-secondary transition-colors" href="#"><span class="material-symbols-outlined">shield</span></a>
+        </div>
+    </div>
+</footer>
+<script>
+    // Micro-interaction for the search input
+    const searchInput = document.querySelector('input[type="text"]');
+    searchInput?.addEventListener('focus', () => {
+        searchInput.parentElement.classList.add('ring-1', 'ring-secondary');
+    });
+    searchInput?.addEventListener('blur', () => {
+        searchInput.parentElement.classList.remove('ring-1', 'ring-secondary');
+    });
+
+    // Simple visibility observer for scroll animations
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('opacity-100', 'translate-y-0');
+                entry.target.classList.remove('opacity-0', 'translate-y-4');
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('section > div').forEach(el => {
+        el.classList.add('transition-all', 'duration-700', 'opacity-0', 'translate-y-4');
+        observer.observe(el);
+    });
+</script>
+</body>
+</html>

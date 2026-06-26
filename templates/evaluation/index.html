@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Evaluation</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+    <div class="max-w-6xl mx-auto p-6 space-y-6">
+        <div class="flex items-center gap-4 mb-6">
+            <a href="/dashboard" class="material-symbols-outlined text-outline hover:text-primary">arrow_back</a>
+            <div>
+                <h1 class="font-headline-md text-headline-md font-bold text-primary">Performance Evaluation</h1>
+                <p class="text-on-surface-variant text-body-sm">Module 14 - Forecast accuracy metrics and benchmarking</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Evaluation Metrics</h3>
+                    <div class="space-y-4" id="eval-metrics">
+                        <div class="flex items-center gap-4 p-4 bg-surface-container rounded-lg">
+                            <span class="material-symbols-outlined text-3xl text-secondary">checklist</span>
+                            <div>
+                                <p class="text-body-sm text-outline">Load a completed forecast from the dashboard to view evaluation metrics including RMSE, MAE, MAPE, Directional Accuracy, and Sharpe Ratio.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-white border border-outline-variant p-5 rounded-xl">
+                    <h3 class="font-headline-sm text-headline-sm font-semibold mb-4">Benchmark Comparison</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-body-sm">
+                            <thead>
+                                <tr class="bg-surface-container">
+                                    <th class="px-4 py-2 text-label-sm text-outline uppercase">Metric</th>
+                                    <th class="px-4 py-2 text-label-sm text-outline uppercase">ARIMA</th>
+                                    <th class="px-4 py-2 text-label-sm text-outline uppercase">Historical Mean</th>
+                                    <th class="px-4 py-2 text-label-sm text-outline uppercase">Outperform?</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-outline-variant">
+                                <tr><td class="px-4 py-3 font-medium">RMSE</td><td class="px-4 py-3 font-mono" id="eval-rmse-arima">-</td><td class="px-4 py-3 font-mono" id="eval-rmse-mean">-</td><td class="px-4 py-3" id="eval-rmse-win">-</td></tr>
+                                <tr><td class="px-4 py-3 font-medium">MAE</td><td class="px-4 py-3 font-mono" id="eval-mae-arima">-</td><td class="px-4 py-3 font-mono" id="eval-mae-mean">-</td><td class="px-4 py-3" id="eval-mae-win">-</td></tr>
+                                <tr><td class="px-4 py-3 font-medium">Directional Accuracy</td><td class="px-4 py-3 font-mono" id="eval-da-arima">-</td><td class="px-4 py-3 font-mono" id="eval-da-mean">-</td><td class="px-4 py-3" id="eval-da-win">-</td></tr>
+                                <tr><td class="px-4 py-3 font-medium">Sharpe Ratio</td><td class="px-4 py-3 font-mono" id="eval-sharpe-arima">-</td><td class="px-4 py-3 font-mono" id="eval-sharpe-mean">-</td><td class="px-4 py-3" id="eval-sharpe-win">-</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadEvalMetrics() {
+            try {
+                const res = await fetch('/api/history');
+                const runs = await res.json();
+                if (runs.length > 0) {
+                    const latest = runs[0];
+                    document.getElementById('eval-metrics').innerHTML = `
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">RMSE</span><p class="text-xl font-bold font-mono">${latest.rmse.toFixed(6)}</p></div>
+                            <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">MAE</span><p class="text-xl font-bold font-mono">${latest.mae.toFixed(6)}</p></div>
+                            <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">DA</span><p class="text-xl font-bold">${latest.directional_accuracy}%</p></div>
+                            <div class="p-3 bg-surface-container rounded-lg"><span class="text-label-sm text-outline">Sharpe</span><p class="text-xl font-bold font-mono">${latest.sharpe_ratio.toFixed(4)}</p></div>
+                        </div>
+                        <p class="text-body-sm text-outline mt-2">Latest: ${latest.symbol} - ${latest.model_type} (${latest.date_ran})</p>
+                    `;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+        loadEvalMetrics();
+    </script>
+</body>
+</html>

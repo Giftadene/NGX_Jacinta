@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>NGX-ARIMA | Settings</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&display=swap');
+        body { font-family: 'Geist', sans-serif; background-color: #f7f9fb; }
+    </style>
+</head>
+<body class="bg-background text-on-surface">
+    <div class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-surface-container-lowest border-r border-outline-variant flex flex-col">
+            <div class="p-5 border-b border-outline-variant">
+                <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='/'">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <span class="material-symbols-outlined text-on-primary">admin_panel_settings</span>
+                    </div>
+                    <div>
+                        <h1 class="font-headline-sm text-headline-sm font-semibold text-primary">Admin Panel</h1>
+                        <p class="text-label-sm text-outline">NGX-ARIMA</p>
+                    </div>
+                </div>
+            </div>
+            <nav class="flex-1 p-4 space-y-1">
+                <a href="{{ url_for('admin.index') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-surface-container-higher rounded font-label-md">
+                    <span class="material-symbols-outlined">dashboard</span> Dashboard
+                </a>
+                <a href="{{ url_for('admin.users') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-surface-container-higher rounded font-label-md">
+                    <span class="material-symbols-outlined">people</span> Users
+                </a>
+                <a href="{{ url_for('admin.settings') }}" class="flex items-center gap-3 p-2.5 text-secondary border-l-2 border-secondary bg-secondary-container/10 rounded font-label-md">
+                    <span class="material-symbols-outlined">settings</span> Settings
+                </a>
+                <a href="{{ url_for('admin.logs') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-surface-container-higher rounded font-label-md">
+                    <span class="material-symbols-outlined">terminal</span> Logs
+                </a>
+            </nav>
+            <div class="p-4 border-t border-outline-variant">
+                <a href="{{ url_for('auth.logout') }}" class="flex items-center gap-3 p-2.5 text-on-surface-variant hover:bg-error-container rounded font-label-md">
+                    <span class="material-symbols-outlined">logout</span> Logout
+                </a>
+            </div>
+        </aside>
+
+        <main class="flex-1 overflow-y-auto">
+            <header class="h-16 border-b border-outline-variant flex items-center px-6 bg-surface-container-lowest">
+                <h2 class="font-headline-sm text-headline-sm font-semibold">System Settings</h2>
+            </header>
+
+            <div class="p-6">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="mb-4 p-3 rounded-lg text-body-sm font-medium
+                                {% if category == 'error' %}bg-error-container text-on-error-container
+                                {% elif category == 'success' %}bg-secondary-container/20 text-secondary{% endif %}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('admin.settings') }}" class="bg-white border border-outline-variant p-6 rounded-xl space-y-6 max-w-2xl">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Institution Name</label>
+                            <input type="text" name="institution_name" value="{{ settings.get('institution_name', '') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Theme</label>
+                            <select name="theme" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                                <option value="light" {% if settings.get('theme') == 'light' %}selected{% endif %}>Light</option>
+                                <option value="dark" {% if settings.get('theme') == 'dark' %}selected{% endif %}>Dark</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h3 class="font-headline-sm text-headline-sm font-semibold border-t border-outline-variant pt-4">Forecast Configuration</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Default Training %</label>
+                            <input type="number" name="default_training_pct" value="{{ settings.get('default_training_pct', '80') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Forecast Horizon</label>
+                            <input type="number" name="forecast_horizon" value="{{ settings.get('forecast_horizon', '30') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Confidence Interval %</label>
+                            <input type="number" name="confidence_interval" value="{{ settings.get('confidence_interval', '95') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Max AR Order (p)</label>
+                            <input type="number" name="max_ar_order" value="{{ settings.get('max_ar_order', '5') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Max MA Order (q)</label>
+                            <input type="number" name="max_ma_order" value="{{ settings.get('max_ma_order', '5') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">ADF Significance Level</label>
+                            <input type="number" step="0.01" name="adf_significance" value="{{ settings.get('adf_significance', '0.05') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                    </div>
+
+                    <h3 class="font-headline-sm text-headline-sm font-semibold border-t border-outline-variant pt-4">Data Source</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Primary Source</label>
+                            <input type="text" name="data_source_primary" value="{{ settings.get('data_source_primary', 'simulated') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-label-md text-on-surface-variant mb-1 font-medium">Cache Duration (seconds)</label>
+                            <input type="number" name="cache_duration" value="{{ settings.get('cache_duration', '3600') }}" class="w-full border border-outline-variant rounded-lg px-3 py-2">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 border-t border-outline-variant pt-4">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" name="maintenance_mode" value="true"
+                                {% if settings.get('maintenance_mode') == 'true' %}checked{% endif %}
+                                class="accent-secondary">
+                            <span class="text-body-sm">Maintenance Mode</span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="px-6 py-2.5 bg-secondary text-on-secondary rounded-lg font-label-md font-bold hover:brightness-110">
+                        Save Settings
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
