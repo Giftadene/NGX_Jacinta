@@ -353,6 +353,29 @@
                             </div>
                         </div>
 
+                        <!-- Forecast Predictions Table -->
+                        <div id="forecast-table-card" class="bg-surface-container-lowest border border-outline-variant hidden">
+                            <div class="px-stack-lg py-stack-md border-b border-outline-variant flex justify-between items-center">
+                                <h3 class="font-headline-sm text-headline-sm font-semibold">Out-of-Sample Forecast Predictions</h3>
+                                <span class="text-on-surface-variant font-body-sm text-body-sm">Actual vs ARIMA Predicted Returns</span>
+                            </div>
+                            <div class="overflow-x-auto max-h-64 overflow-y-auto">
+                                <table class="w-full text-left border-collapse">
+                                    <thead class="sticky top-0 bg-surface-container-low">
+                                        <tr>
+                                            <th class="px-stack-lg py-stack-sm font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Date</th>
+                                            <th class="px-stack-lg py-stack-sm font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Actual Price</th>
+                                            <th class="px-stack-lg py-stack-sm font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Actual Return</th>
+                                            <th class="px-stack-lg py-stack-sm font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider text-right">ARIMA Forecast</th>
+                                            <th class="px-stack-lg py-stack-sm font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider text-right">Direction</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="forecast-predictions-tbody" class="divide-y divide-outline-variant font-mono text-body-sm">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
                         <!-- Recent Analyses Table -->
                         <div class="bg-surface-container-lowest border border-outline-variant">
                             <div class="px-stack-lg py-stack-md border-b border-outline-variant flex justify-between items-center">
@@ -823,6 +846,29 @@
 
         // Draw ACF/PACF bar chart
         renderResidualDiagnosticsChart(d.residual_lags, d.residual_acf, d.residual_pacf);
+
+        // Populate forecast predictions table
+        const series = result.series;
+        const tbody = document.getElementById("forecast-predictions-tbody");
+        tbody.innerHTML = "";
+        for (let i = 0; i < series.dates.length; i++) {
+            const actualDir = series.actual_returns[i] > 0 ? "Up" : "Down";
+            const predDir = series.pred_arima[i] > 0 ? "Up" : "Down";
+            const match = actualDir === predDir;
+            const tr = document.createElement("tr");
+            tr.className = match ? "hover:bg-surface-container-lowest" : "hover:bg-surface-container-lowest bg-error-container/5";
+            tr.innerHTML = `
+                <td class="px-stack-lg py-stack-sm text-outline">${series.dates[i]}</td>
+                <td class="px-stack-lg py-stack-sm text-right">${series.prices[i].toFixed(2)}</td>
+                <td class="px-stack-lg py-stack-sm text-right ${series.actual_returns[i] > 0 ? 'text-secondary' : 'text-error'}">${(series.actual_returns[i] * 100).toFixed(4)}%</td>
+                <td class="px-stack-lg py-stack-sm text-right ${series.pred_arima[i] > 0 ? 'text-secondary' : 'text-error'}">${(series.pred_arima[i] * 100).toFixed(4)}%</td>
+                <td class="px-stack-lg py-stack-sm text-right">
+                    <span class="${match ? 'bg-secondary-container/20 text-secondary' : 'bg-error-container text-on-error-container'} px-2 py-0.5 rounded-sm text-[11px] font-semibold">${predDir}</span>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        }
+        document.getElementById("forecast-table-card").classList.remove("hidden");
     }
 
     // Switch between Cumulative Strategy returns and Asset Price Charts
