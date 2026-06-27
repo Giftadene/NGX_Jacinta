@@ -4,32 +4,45 @@ import uuid
 import threading
 import pandas as pd
 import numpy as np
+from datetime import datetime
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from .extensions import db
-from .models import User, Analysis, Report, Log
+from .models import User, Analysis, Report, Log, ForecastTask
 from config import Config
 
 api_bp = Blueprint("api", __name__)
 
-ACTIVE_FORECASTS = {}
+
+def update_task(task_id, **kwargs):
+    task = ForecastTask.query.filter_by(task_id=task_id).first()
+    if not task:
+        return
+    for key, value in kwargs.items():
+        if key == "logs":
+            existing = json.loads(task.logs or "[]")
+            existing.append(value)
+            task.logs = json.dumps(existing)
+        elif key == "result":
+            task.result = json.dumps(value)
+        else:
+            setattr(task, key, value)
+    task.updated_at = datetime.utcnow()
+    db.session.commit()
 
 
 def async_forecast_worker(task_id, symbol, p, d, q, window_size, test_size, user_id=None):
     from forecasting import run_forecasting_pipeline, save_to_history
 
+    with db.session.begin():
+        update_task(task_id, status="running", logs="Loading dataset...")
+
     def progress_cb(current, total):
         pct = int((current / total) * 100)
-        if task_id in ACTIVE_FORECASTS:
-            ACTIVE_FORECASTS[task_id]["progress"] = pct
-            ACTIVE_FORECASTS[task_id]["logs"].append(
-                f"Processing rolling step {current}/{total} ({pct}%)..."
-            )
+        with db.session.begin():
+            update_task(task_id, progress=pct, logs=f"Processing rolling step {current}/{total} ({pct}%)...")
 
     try:
-        ACTIVE_FORECASTS[task_id]["status"] = "running"
-        ACTIVE_FORECASTS[task_id]["logs"].append("Loading dataset...")
-
         result = run_forecasting_pipeline(
             symbol=symbol, p=p, d=d, q=q,
             window_size=window_size, test_size=test_size,
@@ -52,13 +65,11 @@ def async_forecast_worker(task_id, symbol, p, d, q, window_size, test_size, user
             db.session.commit()
 
         save_to_history(symbol, p, d, q, result["metrics"], Config.DATA_DIR)
-        ACTIVE_FORECASTS[task_id]["status"] = "completed"
-        ACTIVE_FORECASTS[task_id]["result"] = result
-        ACTIVE_FORECASTS[task_id]["logs"].append("Forecast completed!")
+        with db.session.begin():
+            update_task(task_id, status="completed", result=result, logs="Forecast completed!")
     except Exception as e:
-        ACTIVE_FORECASTS[task_id]["status"] = "failed"
-        ACTIVE_FORECASTS[task_id]["error"] = str(e)
-        ACTIVE_FORECASTS[task_id]["logs"].append(f"ERROR: {str(e)}")
+        with db.session.begin():
+            update_task(task_id, status="failed", error=str(e), logs=f"ERROR: {str(e)}")
 
 
 @api_bp.route("/tickers")
@@ -109,13 +120,19 @@ def start_forecast():
     test_size = int(body.get("test_size", 100))
 
     task_id = str(uuid.uuid4())
-    ACTIVE_FORECASTS[task_id] = {
-        "status": "pending",
-        "progress": 0,
-        "logs": ["Initializing..."],
-        "error": None,
-        "result": None,
-    }
+    task = ForecastTask(
+        task_id=task_id,
+        status="pending",
+        progress=0,
+        logs=json.dumps(["Initializing..."]),
+        symbol=symbol,
+        p=p, d=d, q=q,
+        window_size=window_size,
+        test_size=test_size,
+        user_id=current_user.id,
+    )
+    db.session.add(task)
+    db.session.commit()
 
     t = threading.Thread(
         target=async_forecast_worker,
@@ -138,10 +155,16 @@ def start_forecast():
 
 @api_bp.route("/forecast-status/<task_id>")
 def get_forecast_status(task_id):
-    task = ACTIVE_FORECASTS.get(task_id)
+    task = ForecastTask.query.filter_by(task_id=task_id).first()
     if not task:
         return jsonify({"error": "Task not found"}), 404
-    return jsonify(task)
+    return jsonify({
+        "status": task.status,
+        "progress": task.progress,
+        "logs": json.loads(task.logs or "[]"),
+        "error": task.error,
+        "result": json.loads(task.result) if task.result else None,
+    })
 
 
 @api_bp.route("/history")
@@ -172,12 +195,15 @@ def my_analyses():
 def export_report():
     body = request.json or {}
     task_id = body.get("task_id")
-    task = ACTIVE_FORECASTS.get(task_id)
-    if not task or task["status"] != "completed":
+    task = ForecastTask.query.filter_by(task_id=task_id).first()
+    if not task or task.status != "completed":
         return jsonify({"error": "Completed task not found"}), 404
 
     from forecasting import generate_report_latex
-    latex_text = generate_report_latex(task["result"])
+    result = json.loads(task.result) if task.result else None
+    if not result:
+        return jsonify({"error": "Result data not found"}), 404
+    latex_text = generate_report_latex(result)
     return jsonify({"latex": latex_text})
 
 
