@@ -1,17 +1,18 @@
 import os
 import json
 import uuid
-import threading
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from flask import Blueprint, jsonify, request, current_app
+from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from .extensions import db
 from .models import User, Analysis, Report, Log, ForecastTask
 from config import Config
 
 api_bp = Blueprint("api", __name__)
+
+_forecast_running = set()
 
 
 def update_task(task_id, **kwargs):
@@ -31,43 +32,43 @@ def update_task(task_id, **kwargs):
     db.session.commit()
 
 
-def async_forecast_worker(app, task_id, symbol, p, d, q, window_size, test_size, user_id=None):
+def run_forecast_sync(task_id, symbol, p, d, q, window_size, test_size, user_id=None):
     from forecasting import run_forecasting_pipeline, save_to_history
 
-    with app.app_context():
-        update_task(task_id, status="running", logs="Loading dataset...")
+    update_task(task_id, status="running", logs="Loading dataset...")
 
-        def progress_cb(current, total):
-            pct = int((current / total) * 100)
-            with app.app_context():
-                update_task(task_id, progress=pct, logs=f"Processing rolling step {current}/{total} ({pct}%)...")
+    def progress_cb(current, total):
+        pct = int((current / total) * 100)
+        update_task(task_id, progress=pct, logs=f"Processing rolling step {current}/{total} ({pct}%)...")
 
-        try:
-            result = run_forecasting_pipeline(
+    try:
+        result = run_forecasting_pipeline(
+            symbol=symbol, p=p, d=d, q=q,
+            window_size=window_size, test_size=test_size,
+            data_dir=Config.DATA_DIR, progress_callback=progress_cb,
+        )
+
+        if user_id:
+            analysis = Analysis(
+                user_id=user_id,
                 symbol=symbol, p=p, d=d, q=q,
                 window_size=window_size, test_size=test_size,
-                data_dir=Config.DATA_DIR, progress_callback=progress_cb,
+                status="completed",
+                rmse=result["metrics"]["arima"]["rmse"],
+                mae=result["metrics"]["arima"]["mae"],
+                directional_accuracy=result["metrics"]["arima"]["directional_accuracy"],
+                sharpe_ratio=result["metrics"]["arima"]["sharpe_ratio"],
+                result_json=json.dumps(result),
             )
+            db.session.add(analysis)
+            db.session.commit()
 
-            if user_id:
-                analysis = Analysis(
-                    user_id=user_id,
-                    symbol=symbol, p=p, d=d, q=q,
-                    window_size=window_size, test_size=test_size,
-                    status="completed",
-                    rmse=result["metrics"]["arima"]["rmse"],
-                    mae=result["metrics"]["arima"]["mae"],
-                    directional_accuracy=result["metrics"]["arima"]["directional_accuracy"],
-                    sharpe_ratio=result["metrics"]["arima"]["sharpe_ratio"],
-                    result_json=json.dumps(result),
-                )
-                db.session.add(analysis)
-                db.session.commit()
-
-            save_to_history(symbol, p, d, q, result["metrics"], Config.DATA_DIR)
-            update_task(task_id, status="completed", result=result, logs="Forecast completed!")
-        except Exception as e:
-            update_task(task_id, status="failed", error=str(e), logs=f"ERROR: {str(e)}")
+        save_to_history(symbol, p, d, q, result["metrics"], Config.DATA_DIR)
+        update_task(task_id, status="completed", result=result, logs="Forecast completed!")
+    except Exception as e:
+        update_task(task_id, status="failed", error=str(e), logs=f"ERROR: {str(e)}")
+    finally:
+        _forecast_running.discard(task_id)
 
 
 @api_bp.route("/tickers")
@@ -114,8 +115,8 @@ def start_forecast():
     p = int(body.get("p", 1))
     d = int(body.get("d", 1))
     q = int(body.get("q", 2))
-    window_size = int(body.get("window_size", 500))
-    test_size = int(body.get("test_size", 100))
+    window_size = int(body.get("window_size", 250))
+    test_size = int(body.get("test_size", 50))
 
     task_id = str(uuid.uuid4())
     task = ForecastTask(
@@ -131,13 +132,6 @@ def start_forecast():
     )
     db.session.add(task)
     db.session.commit()
-
-    t = threading.Thread(
-        target=async_forecast_worker,
-        args=(current_app._get_current_object(), task_id, symbol, p, d, q, window_size, test_size, current_user.id),
-    )
-    t.daemon = True
-    t.start()
 
     Log(
         user_id=current_user.id,
@@ -156,6 +150,19 @@ def get_forecast_status(task_id):
     task = ForecastTask.query.filter_by(task_id=task_id).first()
     if not task:
         return jsonify({"error": "Task not found"}), 404
+
+    if task.status == "pending" and task_id not in _forecast_running:
+        _forecast_running.add(task_id)
+        run_forecast_sync(
+            task_id=task_id,
+            symbol=task.symbol,
+            p=task.p, d=task.d, q=task.q,
+            window_size=task.window_size,
+            test_size=task.test_size,
+            user_id=task.user_id,
+        )
+        task = ForecastTask.query.filter_by(task_id=task_id).first()
+
     return jsonify({
         "status": task.status,
         "progress": task.progress,

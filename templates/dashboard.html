@@ -580,17 +580,17 @@
             <div>
                 <div class="flex justify-between text-label-md text-on-surface-variant mb-1">
                     <span class="font-semibold">Training Window Size (Days)</span>
-                    <span id="lbl-window-size" class="font-bold text-secondary">500</span>
+                    <span id="lbl-window-size" class="font-bold text-secondary">250</span>
                 </div>
-                <input id="form-window-size" type="range" min="100" max="1500" value="500" step="50" oninput="document.getElementById('lbl-window-size').innerText = this.value" class="w-full accent-secondary"/>
+                <input id="form-window-size" type="range" min="50" max="500" value="250" step="50" oninput="document.getElementById('lbl-window-size').innerText = this.value" class="w-full accent-secondary"/>
             </div>
 
             <div>
                 <div class="flex justify-between text-label-md text-on-surface-variant mb-1">
                     <span class="font-semibold">Test Window Size (Days)</span>
-                    <span id="lbl-test-size" class="font-bold text-secondary">100</span>
+                    <span id="lbl-test-size" class="font-bold text-secondary">50</span>
                 </div>
-                <input id="form-test-size" type="range" min="30" max="300" value="100" step="10" oninput="document.getElementById('lbl-test-size').innerText = this.value" class="w-full accent-secondary"/>
+                <input id="form-test-size" type="range" min="10" max="100" value="50" step="10" oninput="document.getElementById('lbl-test-size').innerText = this.value" class="w-full accent-secondary"/>
             </div>
             
             <button type="submit" class="w-full py-stack-md bg-secondary text-on-secondary rounded-lg font-label-md text-label-md font-bold hover:brightness-110 shadow-sm transition-all flex items-center justify-center gap-2">
