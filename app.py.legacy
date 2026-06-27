@@ -243,13 +243,23 @@ def export_report():
 
 # --- Main Initialization ---
 
-if __name__ == '__main__':
-    # Generate datasets if they don't exist
-    print("Generating simulated sector indices...")
+# --- Application Initialization ---
+
+# Ensure datasets exist
+try:
+    print("Ensuring simulated datasets exist...")
     forecasting.generate_simulated_equities(DATA_DIR)
-    
-    # Initialize history DB
+except Exception as e:
+    print(f"Dataset initialization warning: {e}")
+
+# Ensure history database exists
+try:
     init_history()
-    
+except Exception as e:
+    print(f"History initialization warning: {e}")
+
+# --- Local Development Server ---
+
+if __name__ == "__main__":
     print("Starting Flask web server on port 5000...")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
