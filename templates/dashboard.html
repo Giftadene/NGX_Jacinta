@@ -604,7 +604,6 @@
 <script>
     let mainChart = null;
     let residChart = null;
-    let activeTaskId = null;
     let completedResultData = null;
     let currentChartTab = 'cum_returns';
 
@@ -766,71 +765,23 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ symbol, p, d, q, window_size, test_size })
             });
-            if (!res.ok) {
-                const errData = await res.json().catch(() => ({}));
-                document.getElementById("active-run-console").innerHTML += `<p class="text-red-500">Error: ${errData.error || res.statusText}</p>`;
-                if (res.status === 401) {
-                    setTimeout(() => { window.location.href = "/auth/login"; }, 2000);
-                }
-                return;
-            }
             const task = await res.json();
-            activeTaskId = task.task_id;
-            
-            // Start polling status
-            pollForecastStatus();
+            document.getElementById("active-run-panel").classList.add("hidden");
+
+            if (task.status === "completed") {
+                completedResultData = task.result;
+                displayForecastResults(task.result);
+                loadHistory();
+            } else {
+                document.getElementById("active-run-console").innerHTML += `<p class="text-red-500">Error: ${task.error || "Unknown error"}</p>`;
+            }
         } catch (e) {
             console.error("Failed to trigger forecast:", e);
             document.getElementById("active-run-console").innerHTML += `<p class="text-red-500">Connection error: ${e.message}</p>`;
         }
     }
 
-    // Poll status of running ARIMA task
-    function pollForecastStatus() {
-        const interval = setInterval(async () => {
-            if (!activeTaskId) {
-                clearInterval(interval);
-                return;
-            }
 
-            try {
-                const res = await fetch(`/api/forecast-status/${activeTaskId}`);
-                const task = await res.json();
-                
-                // Update Progress metrics
-                document.getElementById("active-run-progress").innerText = `${task.progress}%`;
-                document.getElementById("active-run-progress-bar").style.width = `${task.progress}%`;
-                
-                // Update Console terminal
-                const consoleDiv = document.getElementById("active-run-console");
-                consoleDiv.innerHTML = task.logs.map(log => `<div>${log}</div>`).join("");
-                consoleDiv.scrollTop = consoleDiv.scrollHeight;
-
-                // Stream log logs to log tab
-                const logsTabConsole = document.getElementById("logs-console");
-                logsTabConsole.innerHTML += task.logs.map(log => `<div>[TASK ${activeTaskId.slice(0,8)}] ${log}</div>`).join("");
-                logsTabConsole.scrollTop = logsTabConsole.scrollHeight;
-
-                if (task.status === "completed") {
-                    clearInterval(interval);
-                    activeTaskId = null;
-                    completedResultData = task.result;
-                    
-                    // Hide progress card and show results
-                    document.getElementById("active-run-panel").classList.add("hidden");
-                    displayForecastResults(task.result);
-                    loadHistory();
-                } else if (task.status === "failed") {
-                    clearInterval(interval);
-                    activeTaskId = null;
-                    document.getElementById("active-run-progress").innerText = "FAILED";
-                    document.getElementById("active-run-progress-bar").classList.replace("bg-secondary-fixed-dim", "bg-error");
-                }
-            } catch (e) {
-                console.error("Error polling task:", e);
-            }
-        }, 800);
-    }
 
     // Display forecast calculations
     function displayForecastResults(result) {
@@ -1062,101 +1013,30 @@
 
     // LaTeX Report Compiling logic
     async function generateReportPaper() {
-        const select = document.getElementById("report-runs-select");
-        const runId = select.value;
-        if (!runId) {
-            alert("Please select a completed forecasting run first.");
+        if (!completedResultData) {
+            alert("Please run a forecast analysis first to generate a report.");
             return;
         }
 
         const reportBox = document.getElementById("report-latex-box");
         reportBox.innerText = "% Compiling LaTeX econometric draft paper... Please wait...";
 
-        // In a real environment, we would post to /api/export-report.
-        // Wait, does the backend have this run? If they ran it in this session, yes.
-        // If it is from the default history, we can generate a mock LaTeX based on the run details!
-        // Let's implement robust API-level latex generation:
         try {
-            // Find in ACTIVE_FORECASTS
-            let resultData = null;
-            // Let's check if the current active forecast or any completed runs match the selected symbol
-            if (completedResultData) {
-                resultData = completedResultData;
-            } else {
-                // If it is a default run, we can compose a valid mock results package so that
-                // the user gets a perfect LaTeX document generated dynamically anyway!
-                resultData = {
-                    symbol: "ASI.NGX",
-                    parameters: "ARIMA(1,1,2)",
-                    window_size: 500,
-                    test_size: 250,
-                    metrics: {
-                        mean: { rmse: 0.009927, mae: 0.006441, directional_accuracy: 49.63, sharpe_ratio: 0.026697 },
-                        arima: { rmse: 0.009477, mae: 0.006346, directional_accuracy: 57.79, sharpe_ratio: 0.213205 }
-                    },
-                    diagnostics: {
-                        adf_returns: { adf_stat: -12.428, p_value: 1.24e-20 },
-                        ljung_box: { lag: 10, stat: 8.425, p_value: 0.5873, is_white_noise: true }
-                    }
-                };
-            }
-
             const res = await fetch("/api/export-report", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ task_id: activeTaskId || "" })
+                body: JSON.stringify({ result: completedResultData })
             });
             
             if (res.ok) {
                 const data = await res.json();
                 reportBox.innerText = data.latex;
             } else {
-                // Fallback client-side generation
-                const clientLatex = `\\documentclass[11pt,a4paper]{article}
-\\usepackage{amsmath}
-\\usepackage{booktabs}
-\\usepackage{geometry}
-\\geometry{margin=1in}
-
-\\title{Forecasting Performance and Economic Evaluation of ARIMA Models on the Nigerian Stock Exchange}
-\\author{Quantitative Research Division}
-\\date{\\today}
-
-\\begin{document}
-\\maketitle
-
-\\begin{abstract}
-This research report presents an empirical evaluation of the univariate Autoregressive Integrated Moving Average (ARIMA) model relative to the Historical Mean benchmark in forecasting daily returns of the All-Share Index (ASI.NGX). Methodologically, we apply a strict rolling out-of-sample forecast framework. The results show that ARIMA(1,1,2) outperforms the benchmark in both statistical point accuracy and trading performance, confirming that linear serial dependencies can provide meaningful economic value.
-\\end{abstract}
-
-\\section{Model Specification and Estimation}
-The daily log-returns of the asset are modeled using an ARIMA(1,1,2) specification. Prior to estimation, the Augmented Dickey-Fuller (ADF) test is conducted to ensure return stationarity. The ADF statistic on log returns is -12.4280 (p-value: 1.2400e-20), confirming stationarity at the 1\\% significance level.
-
-\\section{Forecasting Performance}
-We compare the forecasting accuracy using Root Mean Squared Error (RMSE) and Mean Absolute Error (MAE), and economic utility via Directional Accuracy and Sharpe Ratio.
-
-\\begin{table}[h]
-\\centering
-\\caption{Forecasting Performance Metrics}
-\\begin{tabular}{lcccc}
-\\toprule
-Model & RMSE & MAE & Directional Accuracy & Sharpe Ratio \\\\
-\\midrule
-Historical Mean & 0.009927 & 0.006441 & 49.63\\% & 0.026697 \\\\
-ARIMA(1,1,2) & 0.009477 & 0.006346 & 57.79\\% & 0.213205 \\\\
-\\bottomrule
-\\end{tabular}
-\\end{table}
-
-\\section{Diagnostic Checking}
-Residual diagnostic checking is completed to verify that forecast errors represent white noise. The Ljung-Box Q-statistic for serial correlation at lag 10 is 8.4250 (p-value: 0.5873). 
-We fail to reject the null hypothesis of no serial correlation, indicating that the model residuals resemble white noise.
-
-\\end{document}`;
-                reportBox.innerText = clientLatex;
+                reportBox.innerText = "% Server-side compilation failed. Please try running a forecast first.";
             }
         } catch (e) {
             console.error("Report generation failed:", e);
+            reportBox.innerText = "% Error generating report.";
         }
     }
 

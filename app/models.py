@@ -114,27 +114,6 @@ class Setting(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
-class ForecastTask(db.Model):
-    __tablename__ = "forecast_tasks"
-
-    id = db.Column(db.Integer, primary_key=True)
-    task_id = db.Column(db.String(36), unique=True, nullable=False, index=True)
-    status = db.Column(db.String(20), default="pending")
-    progress = db.Column(db.Integer, default=0)
-    logs = db.Column(db.Text, default="[]")
-    error = db.Column(db.Text, nullable=True)
-    result = db.Column(db.Text, nullable=True)
-    symbol = db.Column(db.String(20), nullable=False)
-    p = db.Column(db.Integer, default=1)
-    d = db.Column(db.Integer, default=1)
-    q = db.Column(db.Integer, default=2)
-    window_size = db.Column(db.Integer, default=500)
-    test_size = db.Column(db.Integer, default=100)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
 class Log(db.Model):
     __tablename__ = "logs"
 

@@ -1,70 +1,14 @@
 import os
 import json
-import uuid
 import pandas as pd
 import numpy as np
-from datetime import datetime
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from .extensions import db
-from .models import User, Analysis, Report, Log, ForecastTask
+from .models import User, Analysis, Report, Log
 from config import Config
 
 api_bp = Blueprint("api", __name__)
-
-
-def update_task(task_id, **kwargs):
-    task = ForecastTask.query.filter_by(task_id=task_id).first()
-    if not task:
-        return
-    for key, value in kwargs.items():
-        if key == "logs":
-            existing = json.loads(task.logs or "[]")
-            existing.append(value)
-            task.logs = json.dumps(existing)
-        elif key == "result":
-            task.result = json.dumps(value)
-        else:
-            setattr(task, key, value)
-    task.updated_at = datetime.utcnow()
-    db.session.commit()
-
-
-def run_forecast_sync(task_id, symbol, p, d, q, window_size, test_size, user_id=None):
-    from forecasting import run_forecasting_pipeline, save_to_history
-
-    update_task(task_id, logs="Running forecast pipeline...")
-
-    def progress_cb(current, total):
-        pct = int((current / total) * 100)
-        update_task(task_id, progress=pct, logs=f"Processing rolling step {current}/{total} ({pct}%)...")
-
-    try:
-        result = run_forecasting_pipeline(
-            symbol=symbol, p=p, d=d, q=q,
-            window_size=window_size, test_size=test_size,
-            data_dir=Config.DATA_DIR, progress_callback=progress_cb,
-        )
-
-        if user_id:
-            analysis = Analysis(
-                user_id=user_id,
-                symbol=symbol, p=p, d=d, q=q,
-                window_size=window_size, test_size=test_size,
-                status="completed",
-                rmse=result["metrics"]["arima"]["rmse"],
-                mae=result["metrics"]["arima"]["mae"],
-                directional_accuracy=result["metrics"]["arima"]["directional_accuracy"],
-                sharpe_ratio=result["metrics"]["arima"]["sharpe_ratio"],
-                result_json=json.dumps(result),
-            )
-            db.session.add(analysis)
-            db.session.commit()
-
-        save_to_history(symbol, p, d, q, result["metrics"], Config.DATA_DIR)
-        update_task(task_id, status="completed", result=result, logs="Forecast completed!")
-    except Exception as e:
-        update_task(task_id, status="failed", error=str(e), logs=f"ERROR: {str(e)}")
 
 
 @api_bp.route("/tickers")
@@ -106,6 +50,8 @@ def get_data_summary():
 @api_bp.route("/start-forecast", methods=["POST"])
 @login_required
 def start_forecast():
+    from forecasting import run_forecasting_pipeline, save_to_history
+
     body = request.json or {}
     symbol = body.get("symbol", "ASI.NGX")
     p = int(body.get("p", 1))
@@ -114,70 +60,45 @@ def start_forecast():
     window_size = int(body.get("window_size", 250))
     test_size = int(body.get("test_size", 50))
 
-    task_id = str(uuid.uuid4())
-    task = ForecastTask(
-        task_id=task_id,
-        status="pending",
-        progress=0,
-        logs=json.dumps(["Initializing..."]),
-        symbol=symbol,
-        p=p, d=d, q=q,
-        window_size=window_size,
-        test_size=test_size,
-        user_id=current_user.id,
-    )
-    db.session.add(task)
-    db.session.commit()
-
-    Log(
-        user_id=current_user.id,
-        action="start_forecast",
-        category="forecast",
-        details=f"{symbol} ARIMA({p},{d},{q}) w={window_size} t={test_size}",
-        ip_address=request.remote_addr,
-    )
-    db.session.commit()
-
-    return jsonify({"task_id": task_id})
-
-
-@api_bp.route("/forecast-status/<task_id>")
-def get_forecast_status(task_id):
-    task = ForecastTask.query.filter_by(task_id=task_id).first()
-    if not task:
-        return jsonify({"error": "Task not found"}), 404
-
-    if task.status == "pending":
-        from sqlalchemy import update as sa_update
-        stmt = sa_update(ForecastTask).where(
-            ForecastTask.task_id == task_id,
-            ForecastTask.status == "pending"
-        ).values(
-            status="running",
-            logs=json.dumps(["Initializing...", "Loading dataset..."]),
+    try:
+        result = run_forecasting_pipeline(
+            symbol=symbol, p=p, d=d, q=q,
+            window_size=window_size, test_size=test_size,
+            data_dir=Config.DATA_DIR,
         )
-        result = db.session.execute(stmt)
-        db.session.commit()
-        if result.rowcount > 0:
-            run_forecast_sync(
-                task_id=task_id,
-                symbol=task.symbol,
-                p=task.p, d=task.d, q=task.q,
-                window_size=task.window_size,
-                test_size=task.test_size,
-                user_id=task.user_id,
-            )
-            task = ForecastTask.query.filter_by(task_id=task_id).first()
-    elif task.status == "running":
-        task = ForecastTask.query.filter_by(task_id=task_id).first()
 
-    return jsonify({
-        "status": task.status,
-        "progress": task.progress,
-        "logs": json.loads(task.logs or "[]"),
-        "error": task.error,
-        "result": json.loads(task.result) if task.result else None,
-    })
+        if current_user.is_authenticated:
+            analysis = Analysis(
+                user_id=current_user.id,
+                symbol=symbol, p=p, d=d, q=q,
+                window_size=window_size, test_size=test_size,
+                status="completed",
+                rmse=result["metrics"]["arima"]["rmse"],
+                mae=result["metrics"]["arima"]["mae"],
+                directional_accuracy=result["metrics"]["arima"]["directional_accuracy"],
+                sharpe_ratio=result["metrics"]["arima"]["sharpe_ratio"],
+                result_json=json.dumps(result),
+            )
+            db.session.add(analysis)
+            db.session.commit()
+
+        save_to_history(symbol, p, d, q, result["metrics"], Config.DATA_DIR)
+
+        Log(
+            user_id=current_user.id,
+            action="start_forecast",
+            category="forecast",
+            details=f"{symbol} ARIMA({p},{d},{q}) w={window_size} t={test_size}",
+            ip_address=request.remote_addr,
+        )
+        db.session.commit()
+
+        return jsonify({"status": "completed", "result": result})
+    except Exception as e:
+        return jsonify({"status": "failed", "error": str(e)}), 400
+
+
+
 
 
 @api_bp.route("/history")
@@ -207,17 +128,12 @@ def my_analyses():
 @api_bp.route("/export-report", methods=["POST"])
 def export_report():
     body = request.json or {}
-    task_id = body.get("task_id")
-    task = ForecastTask.query.filter_by(task_id=task_id).first()
-    if not task or task.status != "completed":
-        return jsonify({"error": "Completed task not found"}), 404
-
     from forecasting import generate_report_latex
-    result = json.loads(task.result) if task.result else None
-    if not result:
-        return jsonify({"error": "Result data not found"}), 404
-    latex_text = generate_report_latex(result)
-    return jsonify({"latex": latex_text})
+    result_data = body.get("result")
+    if result_data:
+        latex_text = generate_report_latex(result_data)
+        return jsonify({"latex": latex_text})
+    return jsonify({"error": "Result data not provided"}), 400
 
 
 @api_bp.route("/users")
