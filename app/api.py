@@ -5,7 +5,7 @@ import threading
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
 from .extensions import db
 from .models import User, Analysis, Report, Log, ForecastTask
@@ -31,44 +31,42 @@ def update_task(task_id, **kwargs):
     db.session.commit()
 
 
-def async_forecast_worker(task_id, symbol, p, d, q, window_size, test_size, user_id=None):
+def async_forecast_worker(app, task_id, symbol, p, d, q, window_size, test_size, user_id=None):
     from forecasting import run_forecasting_pipeline, save_to_history
 
-    with db.session.begin():
+    with app.app_context():
         update_task(task_id, status="running", logs="Loading dataset...")
 
-    def progress_cb(current, total):
-        pct = int((current / total) * 100)
-        with db.session.begin():
-            update_task(task_id, progress=pct, logs=f"Processing rolling step {current}/{total} ({pct}%)...")
+        def progress_cb(current, total):
+            pct = int((current / total) * 100)
+            with app.app_context():
+                update_task(task_id, progress=pct, logs=f"Processing rolling step {current}/{total} ({pct}%)...")
 
-    try:
-        result = run_forecasting_pipeline(
-            symbol=symbol, p=p, d=d, q=q,
-            window_size=window_size, test_size=test_size,
-            data_dir=Config.DATA_DIR, progress_callback=progress_cb,
-        )
-
-        if user_id:
-            analysis = Analysis(
-                user_id=user_id,
+        try:
+            result = run_forecasting_pipeline(
                 symbol=symbol, p=p, d=d, q=q,
                 window_size=window_size, test_size=test_size,
-                status="completed",
-                rmse=result["metrics"]["arima"]["rmse"],
-                mae=result["metrics"]["arima"]["mae"],
-                directional_accuracy=result["metrics"]["arima"]["directional_accuracy"],
-                sharpe_ratio=result["metrics"]["arima"]["sharpe_ratio"],
-                result_json=json.dumps(result),
+                data_dir=Config.DATA_DIR, progress_callback=progress_cb,
             )
-            db.session.add(analysis)
-            db.session.commit()
 
-        save_to_history(symbol, p, d, q, result["metrics"], Config.DATA_DIR)
-        with db.session.begin():
+            if user_id:
+                analysis = Analysis(
+                    user_id=user_id,
+                    symbol=symbol, p=p, d=d, q=q,
+                    window_size=window_size, test_size=test_size,
+                    status="completed",
+                    rmse=result["metrics"]["arima"]["rmse"],
+                    mae=result["metrics"]["arima"]["mae"],
+                    directional_accuracy=result["metrics"]["arima"]["directional_accuracy"],
+                    sharpe_ratio=result["metrics"]["arima"]["sharpe_ratio"],
+                    result_json=json.dumps(result),
+                )
+                db.session.add(analysis)
+                db.session.commit()
+
+            save_to_history(symbol, p, d, q, result["metrics"], Config.DATA_DIR)
             update_task(task_id, status="completed", result=result, logs="Forecast completed!")
-    except Exception as e:
-        with db.session.begin():
+        except Exception as e:
             update_task(task_id, status="failed", error=str(e), logs=f"ERROR: {str(e)}")
 
 
@@ -136,7 +134,7 @@ def start_forecast():
 
     t = threading.Thread(
         target=async_forecast_worker,
-        args=(task_id, symbol, p, d, q, window_size, test_size, current_user.id),
+        args=(current_app._get_current_object(), task_id, symbol, p, d, q, window_size, test_size, current_user.id),
     )
     t.daemon = True
     t.start()
