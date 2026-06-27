@@ -1,6 +1,6 @@
 import os
 import shutil
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify, request
 from config import Config, IS_VERCEL, DATA_DIR as CFG_DATA_DIR
 from .extensions import db, migrate, login_manager, jwt, cors
 
@@ -27,6 +27,12 @@ def create_app(config_class=Config):
     @login_manager.user_loader
     def load_user(user_id):
         return db.session.get(User, int(user_id))
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith("/api/"):
+            return jsonify({"error": "Authentication required"}), 401
+        return render_template("auth/login.html")
 
     from .auth import auth_bp
     from .admin import admin_bp

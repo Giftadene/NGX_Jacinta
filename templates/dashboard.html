@@ -766,6 +766,14 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ symbol, p, d, q, window_size, test_size })
             });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                document.getElementById("active-run-console").innerHTML += `<p class="text-red-500">Error: ${errData.error || res.statusText}</p>`;
+                if (res.status === 401) {
+                    setTimeout(() => { window.location.href = "/auth/login"; }, 2000);
+                }
+                return;
+            }
             const task = await res.json();
             activeTaskId = task.task_id;
             
