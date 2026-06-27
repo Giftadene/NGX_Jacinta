@@ -12,8 +12,6 @@ from config import Config
 
 api_bp = Blueprint("api", __name__)
 
-_forecast_running = set()
-
 
 def update_task(task_id, **kwargs):
     task = ForecastTask.query.filter_by(task_id=task_id).first()
@@ -35,7 +33,7 @@ def update_task(task_id, **kwargs):
 def run_forecast_sync(task_id, symbol, p, d, q, window_size, test_size, user_id=None):
     from forecasting import run_forecasting_pipeline, save_to_history
 
-    update_task(task_id, status="running", logs="Loading dataset...")
+    update_task(task_id, logs="Running forecast pipeline...")
 
     def progress_cb(current, total):
         pct = int((current / total) * 100)
@@ -67,8 +65,6 @@ def run_forecast_sync(task_id, symbol, p, d, q, window_size, test_size, user_id=
         update_task(task_id, status="completed", result=result, logs="Forecast completed!")
     except Exception as e:
         update_task(task_id, status="failed", error=str(e), logs=f"ERROR: {str(e)}")
-    finally:
-        _forecast_running.discard(task_id)
 
 
 @api_bp.route("/tickers")
@@ -151,16 +147,28 @@ def get_forecast_status(task_id):
     if not task:
         return jsonify({"error": "Task not found"}), 404
 
-    if task.status == "pending" and task_id not in _forecast_running:
-        _forecast_running.add(task_id)
-        run_forecast_sync(
-            task_id=task_id,
-            symbol=task.symbol,
-            p=task.p, d=task.d, q=task.q,
-            window_size=task.window_size,
-            test_size=task.test_size,
-            user_id=task.user_id,
+    if task.status == "pending":
+        from sqlalchemy import update as sa_update
+        stmt = sa_update(ForecastTask).where(
+            ForecastTask.task_id == task_id,
+            ForecastTask.status == "pending"
+        ).values(
+            status="running",
+            logs=json.dumps(["Initializing...", "Loading dataset..."]),
         )
+        result = db.session.execute(stmt)
+        db.session.commit()
+        if result.rowcount > 0:
+            run_forecast_sync(
+                task_id=task_id,
+                symbol=task.symbol,
+                p=task.p, d=task.d, q=task.q,
+                window_size=task.window_size,
+                test_size=task.test_size,
+                user_id=task.user_id,
+            )
+            task = ForecastTask.query.filter_by(task_id=task_id).first()
+    elif task.status == "running":
         task = ForecastTask.query.filter_by(task_id=task_id).first()
 
     return jsonify({
