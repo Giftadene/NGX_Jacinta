@@ -162,7 +162,7 @@ class Log(db.Model):
 def seed_defaults(app):
     from .extensions import db
 
-    if not User.query.filter_by(role="admin").first():
+    if not User.query.filter_by(username="admin").first():
         admin = User(
             username="admin",
             email="admin@ngx-arima.com",
@@ -171,6 +171,16 @@ def seed_defaults(app):
         )
         admin.set_password("admin123")
         db.session.add(admin)
+
+    if not User.query.filter_by(username="researcher").first():
+        researcher = User(
+            username="researcher",
+            email="researcher@ngx-arima.com",
+            role="researcher",
+            is_active=True,
+        )
+        researcher.set_password("researcher123")
+        db.session.add(researcher)
 
     defaults = {
         "institution_name": "NGX-ARIMA Research Platform",
