@@ -318,7 +318,7 @@ def run_future_forecast(symbol, p, d, q, steps=7, data_dir="data"):
 
     forecast_dates = []
     prices = [last_close]
-    next_date = last_date
+    next_date = pd.Timestamp.now()
     for i in range(steps):
         next_date = next_date + pd.Timedelta(days=1)
         while next_date.weekday() >= 5:
