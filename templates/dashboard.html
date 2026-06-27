@@ -439,6 +439,52 @@
                             </div>
                         </div>
 
+                        <!-- Future Price Forecast -->
+                        <div id="future-forecast-card" class="bg-surface-container-lowest border border-outline-variant p-stack-lg space-y-stack-md">
+                            <h3 class="font-label-md text-label-md uppercase tracking-wider font-bold">Future Price Forecast</h3>
+                            <p class="text-on-surface-variant text-body-sm">Predict future prices using fitted ARIMA model.</p>
+                            <div class="flex gap-2">
+                                <div class="flex-1">
+                                    <label class="block text-label-sm text-on-surface-variant mb-1">Days ahead</label>
+                                    <input id="ff-steps" type="number" min="1" max="30" value="7" class="w-full bg-surface-container-low border-none font-body-md text-body-md rounded-lg py-2 px-3 focus:ring-1 focus:ring-secondary"/>
+                                </div>
+                                <div class="flex-1">
+                                    <label class="block text-label-sm text-on-surface-variant mb-1">Symbol</label>
+                                    <select id="ff-symbol" class="w-full bg-surface-container-low border-none font-body-md text-body-md rounded-lg py-2 px-3 focus:ring-1 focus:ring-secondary">
+                                        <option value="ASI.NGX">ASI.NGX</option>
+                                        <option value="DANGCEM">DANGCEM</option>
+                                        <option value="MTNN">MTNN</option>
+                                        <option value="ZENITH">ZENITH</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="runFutureForecast()" class="w-full py-stack-md bg-secondary text-on-secondary rounded-lg font-label-md text-label-md font-bold hover:brightness-110 shadow-sm transition-all flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-[20px]">trending_up</span>
+                                Generate Forecast
+                            </button>
+                            <div id="ff-result" class="hidden space-y-stack-md">
+                                <div class="border-t border-outline-variant pt-stack-sm">
+                                    <div class="relative w-full h-48">
+                                        <canvas id="ffChart"></canvas>
+                                    </div>
+                                </div>
+                                <div class="overflow-x-auto max-h-40 overflow-y-auto">
+                                    <table class="w-full text-left border-collapse text-body-sm">
+                                        <thead class="sticky top-0 bg-surface-container-low">
+                                            <tr>
+                                                <th class="px-stack-sm py-stack-xs font-label-sm text-label-sm text-on-surface-variant">Date</th>
+                                                <th class="px-stack-sm py-stack-xs font-label-sm text-label-sm text-on-surface-variant text-right">Forecast Price</th>
+                                                <th class="px-stack-sm py-stack-xs font-label-sm text-label-sm text-on-surface-variant text-right">Lower CI</th>
+                                                <th class="px-stack-sm py-stack-xs font-label-sm text-label-sm text-on-surface-variant text-right">Upper CI</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ff-tbody" class="divide-y divide-outline-variant font-mono"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div id="ff-error" class="hidden text-error text-body-sm"></div>
+                        </div>
+
                         <!-- Recent Reports -->
                         <div class="bg-surface-container-lowest border border-outline-variant flex flex-col h-fit">
                             <div class="px-stack-lg py-stack-md border-b border-outline-variant flex items-center justify-between">
@@ -627,6 +673,7 @@
 <script>
     let mainChart = null;
     let residChart = null;
+    let ffChart = null;
     let completedResultData = null;
     let currentChartTab = 'cum_returns';
 
@@ -1038,6 +1085,99 @@
                 }
             }
         });
+    }
+
+    async function runFutureForecast() {
+        const symbol = document.getElementById("ff-symbol").value;
+        const steps = parseInt(document.getElementById("ff-steps").value) || 7;
+        const btn = document.querySelector("#future-forecast-card button");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="material-symbols-outlined text-[20px]">sync</span> Forecasting...';
+
+        document.getElementById("ff-result").classList.add("hidden");
+        document.getElementById("ff-error").classList.add("hidden");
+
+        try {
+            const res = await fetch("/api/future-forecast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ symbol, p: 1, d: 1, q: 2, steps })
+            });
+            const data = await res.json();
+            if (data.status !== "completed") {
+                document.getElementById("ff-error").innerText = data.error || "Forecast failed";
+                document.getElementById("ff-error").classList.remove("hidden");
+                return;
+            }
+            const fc = data.result.forecast;
+            const tbody = document.getElementById("ff-tbody");
+            tbody.innerHTML = "";
+            for (let i = 0; i < fc.dates.length; i++) {
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-surface-container-lowest";
+                tr.innerHTML = `
+                    <td class="px-stack-sm py-stack-xs text-outline">${fc.dates[i]}</td>
+                    <td class="px-stack-sm py-stack-xs text-right font-semibold text-primary">${fc.predicted_prices[i].toFixed(2)}</td>
+                    <td class="px-stack-sm py-stack-xs text-right text-on-surface-variant">${fc.lower_ci_prices[i].toFixed(2)}</td>
+                    <td class="px-stack-sm py-stack-xs text-right text-on-surface-variant">${fc.upper_ci_prices[i].toFixed(2)}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            if (ffChart) ffChart.destroy();
+            const ctx = document.getElementById("ffChart").getContext("2d");
+            ffChart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: fc.dates,
+                    datasets: [
+                        {
+                            label: "Forecast Price",
+                            data: fc.predicted_prices,
+                            borderColor: "#006a61",
+                            backgroundColor: "rgba(0,106,97,0.1)",
+                            fill: false,
+                            tension: 0.2,
+                            pointRadius: 4,
+                            pointBackgroundColor: "#006a61",
+                        },
+                        {
+                            label: "Upper CI",
+                            data: fc.upper_ci_prices,
+                            borderColor: "rgba(0,106,97,0.3)",
+                            borderDash: [4, 4],
+                            fill: false,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: "Lower CI",
+                            data: fc.lower_ci_prices,
+                            borderColor: "rgba(0,106,97,0.3)",
+                            borderDash: [4, 4],
+                            fill: false,
+                            pointRadius: 0,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { grid: { color: "#e6e8ea" } },
+                    },
+                },
+            });
+
+            document.getElementById("ff-result").classList.remove("hidden");
+        } catch (e) {
+            document.getElementById("ff-error").innerText = "Connection error: " + e.message;
+            document.getElementById("ff-error").classList.remove("hidden");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="material-symbols-outlined text-[20px]">trending_up</span> Generate Forecast';
+        }
     }
 
     // Load forecast result directly from clicking a row in history table

@@ -101,6 +101,27 @@ def start_forecast():
 
 
 
+
+@api_bp.route("/future-forecast", methods=["POST"])
+def future_forecast():
+    from forecasting import run_future_forecast as rff
+
+    body = request.json or {}
+    symbol = body.get("symbol", "ASI.NGX")
+    p = int(body.get("p", 1))
+    d = int(body.get("d", 1))
+    q = int(body.get("q", 2))
+    steps = int(body.get("steps", 7))
+
+    try:
+        result = rff(
+            symbol=symbol, p=p, d=d, q=q,
+            steps=steps, data_dir=Config.DATA_DIR,
+        )
+        return jsonify({"status": "completed", "result": result})
+    except Exception as e:
+        return jsonify({"status": "failed", "error": str(e)}), 400
+
 @api_bp.route("/history")
 def get_history():
     history_file = os.path.join(Config.DATA_DIR, "history.json")

@@ -290,6 +290,67 @@ def run_forecasting_pipeline(symbol, p, d, q, window_size=1000, test_size=250, d
     
     return results
 
+def run_future_forecast(symbol, p, d, q, steps=7, data_dir="data"):
+    """
+    Fits ARIMA(p,d,q) on all available historical data and forecasts 'steps' days ahead.
+    Returns predicted log returns, prices, and confidence intervals.
+    """
+    from statsmodels.tsa.arima.model import ARIMA
+
+    filepath = get_data_filepath(symbol, data_dir)
+    df = pd.read_csv(filepath)
+    df['Date'] = pd.to_datetime(df['Date'])
+    df = df.sort_values('Date').reset_index(drop=True)
+
+    df['log_return'] = np.log(df['Close'] / df['Close'].shift(1))
+    df = df.dropna(subset=['log_return']).reset_index(drop=True)
+
+    series = df['log_return'].values
+    last_close = float(df['Close'].iloc[-1])
+    last_date = df['Date'].iloc[-1]
+
+    model = ARIMA(series, order=(p, d, q), enforce_stationarity=False, enforce_invertibility=False)
+    model_fit = model.fit()
+
+    forecast_result = model_fit.forecast(steps=steps)
+    pred_result = model_fit.get_forecast(steps=steps)
+    conf_int = pred_result.conf_int()
+
+    forecast_dates = []
+    prices = [last_close]
+    next_date = last_date
+    for i in range(steps):
+        next_date = next_date + pd.Timedelta(days=1)
+        while next_date.weekday() >= 5:
+            next_date = next_date + pd.Timedelta(days=1)
+        forecast_dates.append(next_date.strftime("%Y-%m-%d"))
+        next_price = prices[-1] * np.exp(forecast_result[i])
+        prices.append(next_price)
+
+    pred_prices = prices[1:]
+
+    lower_prices = []
+    upper_prices = []
+    for i in range(steps):
+        lower_prices.append(prices[i] * np.exp(conf_int[i, 0]))
+        upper_prices.append(prices[i] * np.exp(conf_int[i, 1]))
+
+    return {
+        "symbol": symbol,
+        "parameters": f"ARIMA({p},{d},{q})",
+        "steps": steps,
+        "last_historical_date": last_date.strftime("%Y-%m-%d"),
+        "last_historical_price": last_close,
+        "forecast": {
+            "dates": forecast_dates,
+            "predicted_returns": [float(r) for r in forecast_result],
+            "predicted_prices": pred_prices,
+            "lower_ci_prices": lower_prices,
+            "upper_ci_prices": upper_prices,
+        },
+    }
+
+
 def save_to_history(symbol, p, d, q, metrics, data_dir="data"):
     import json, uuid
     history_file = os.path.join(data_dir, "history.json")
