@@ -1,6 +1,7 @@
 import os
+import shutil
 from flask import Flask, render_template
-from config import Config
+from config import Config, IS_VERCEL, DATA_DIR as CFG_DATA_DIR
 from .extensions import db, migrate, login_manager, jwt, cors
 
 def create_app(config_class=Config):
@@ -42,6 +43,18 @@ def create_app(config_class=Config):
     @app.route("/")
     def index():
         return render_template("index.html")
+
+    if IS_VERCEL:
+        os.makedirs(CFG_DATA_DIR, exist_ok=True)
+        os.makedirs(os.path.join(CFG_DATA_DIR, "uploads"), exist_ok=True)
+        os.makedirs(os.path.join(CFG_DATA_DIR, "downloads"), exist_ok=True)
+        src_data = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+        if os.path.exists(src_data):
+            for f in os.listdir(src_data):
+                src_file = os.path.join(src_data, f)
+                dst_file = os.path.join(CFG_DATA_DIR, f)
+                if os.path.isfile(src_file) and not os.path.exists(dst_file):
+                    shutil.copy2(src_file, dst_file)
 
     with app.app_context():
         from . import models

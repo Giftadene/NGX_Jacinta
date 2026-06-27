@@ -4,12 +4,12 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 from app import create_app
-from forecasting import generate_simulated_equities
 from config import Config
 
 app = create_app()
 
 if __name__ == "__main__":
+    from forecasting import generate_simulated_equities
     print("Ensuring simulated datasets exist...")
     generate_simulated_equities(Config.DATA_DIR)
 
