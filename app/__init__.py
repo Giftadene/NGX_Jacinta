@@ -50,6 +50,16 @@ def create_app(config_class=Config):
     def index():
         return render_template("index.html")
 
+    @app.route("/api/health")
+    def health():
+        import sys
+        return jsonify({
+            "status": "ok",
+            "vercel": IS_VERCEL,
+            "python": sys.version,
+            "db_url": str(app.config.get("SQLALCHEMY_DATABASE_URI", "")[:50] + "..."),
+        })
+
     if IS_VERCEL:
         os.makedirs(CFG_DATA_DIR, exist_ok=True)
         os.makedirs(os.path.join(CFG_DATA_DIR, "uploads"), exist_ok=True)
@@ -63,8 +73,13 @@ def create_app(config_class=Config):
                     shutil.copy2(src_file, dst_file)
 
     with app.app_context():
-        from . import models
-        db.create_all()
-        models.seed_defaults(app)
+        try:
+            from . import models
+            db.create_all()
+            models.seed_defaults(app)
+        except Exception as e:
+            import traceback
+            print(f"DB init error: {e}")
+            traceback.print_exc()
 
     return app

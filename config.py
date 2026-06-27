@@ -1,9 +1,8 @@
 import os
-import sys
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
-IS_VERCEL = "VERCEL" in os.environ or "VERCEL_ENV" in os.environ
+IS_VERCEL = bool(os.environ.get("VERCEL_ENV")) or bool(os.environ.get("VERCEL"))
 if IS_VERCEL:
     DATA_DIR = "/tmp/data"
 else:
@@ -11,14 +10,13 @@ else:
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "ngx-arima-secret-key-change-in-production")
-    if IS_VERCEL:
-        SQLALCHEMY_DATABASE_URI = os.environ.get(
-            "DATABASE_URL", f"sqlite:////tmp/ngx_arima.db"
-        )
+    DATABASE_URL = os.environ.get("DATABASE_URL", "")
+    if DATABASE_URL:
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    elif IS_VERCEL:
+        SQLALCHEMY_DATABASE_URI = f"sqlite:////tmp/ngx_arima.db"
     else:
-        SQLALCHEMY_DATABASE_URI = os.environ.get(
-            "DATABASE_URL", f"sqlite:///{os.path.join(DATA_DIR, 'ngx_arima.db')}"
-        )
+        SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(DATA_DIR, 'ngx_arima.db')}"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "jwt-secret-change-in-production")
     JWT_ACCESS_TOKEN_EXPIRES = 3600
