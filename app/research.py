@@ -4,6 +4,11 @@ from flask_login import login_required
 research_bp = Blueprint("research", __name__, template_folder="../templates")
 
 
+@research_bp.route("/eda")
+@login_required
+def eda():
+    return render_template("eda/index.html")
+
 @research_bp.route("/acquisition")
 @login_required
 def acquisition():
