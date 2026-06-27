@@ -12,3 +12,4 @@ scipy==1.17.1
 matplotlib==3.11.0
 email-validator==2.3.0
 python-dotenv==1.1.0
+psycopg2-binary==2.9.10
